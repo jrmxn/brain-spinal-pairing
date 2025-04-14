@@ -1,0 +1,25 @@
+[paths]
+csv_path = "---"
+build_directory = "---"
+
+[variables]
+intensity = "---"
+features = ["---"]
+response = ['PKPK_ECR', 'PKPK_FCR']
+
+[mcmc]
+num_chains = 4
+num_warmup = 2000
+num_samples = 2000
+thinning = 4
+
+[misc]
+base = 10
+
+[optional-mep-data]
+# This is a .npy file with shape: (No. of rows in csv) x (time) x (No. of responses)
+mep_matrix_path = "---"
+# Order of response in MEP matrix
+mep_response = ['ECR', 'FCR', 'APB', 'ADM', 'FDI']
+mep_window = [-0.25, 0.25]
+mep_size_window = [0.0065, 0.09]
