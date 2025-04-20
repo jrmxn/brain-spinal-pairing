@@ -32,6 +32,9 @@ def configure_figure():
     return cmti
 
 
+CMTI = configure_figure()
+
+
 def get_model_hash(model_function):
     source_code = inspect.getsource(model_function)
     return hashlib.sha256(source_code.encode('utf-8')).hexdigest()
@@ -524,7 +527,7 @@ def plot_data_with_posterior_predictive(cfg, y, x, condition_index, participant_
                                 axis=0).shape[0]
         if total_plots < 1:
             continue
-        fig, axes = plt.subplots(total_plots, num_muscles, figsize=(3.5 * num_muscles * cmti, 3.5 * total_plots * cmti), sharex=True,
+        fig, axes = plt.subplots(total_plots, num_muscles, figsize=(3.5 * num_muscles * CMTI, 3.5 * total_plots * CMTI), sharex=True,
                                  squeeze=False)
         gg = []
         plot_index = 0
@@ -590,7 +593,7 @@ def plot_data_with_posterior_predictive(cfg, y, x, condition_index, participant_
                             ax.axhline(z2, color='k', linestyle='--', linewidth=0.5)
 
                             # Copy the ax into its own figure
-                            fig_single, ax_single = plt.subplots(1, 1, figsize=((1 + 3.5 * 1) * cmti, (0.5 + 3.5 * 1) * cmti))
+                            fig_single, ax_single = plt.subplots(1, 1, figsize=((1 + 3.5 * 1) * CMTI, (0.5 + 3.5 * 1) * CMTI))
                             ax_single.plot(x_new, y_new_local, color=c, linewidth=1)
                             ax_single.set_xlabel(xlabel)
                             ax_single.set_ylabel(rf'MEP size ($\log_{{{base}}}$)')

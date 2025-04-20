@@ -94,7 +94,7 @@ pctchg_core = lambda x, base: ((base ** x) - 1) * 100
 h_use_robust_linear = lambda: False
 
 
-h_skip_slow_plots = lambda: True
+h_skip_slow_plots = lambda: False
 
 
 h_alias = lambda x: x.replace('SCA', 'UI').replace('SCS', 'SCI')
@@ -2037,11 +2037,12 @@ def main(o_model=None, rl_model="", overwrite=False):
 
     if (cfg['DATA_OPTIONS']['type'] == 'noninvasive') and ('co' in str(p_model)):
         plot_scivariables_relation(data, ordinate_data='y_array_fac_pct', column_types=column_types_main, hdidelta_a_cutoff=h_hdidelta_a_cutoff(), skip=skip)
-        # plot_scivariables_relation(data, ordinate_data='x_array_th_local', column_types=column_types_main, mode='TSS', hdidelta_a_cutoff=h_hdidelta_a_cutoff(), skip=skip)
-        # plot_scivariables_relation(data, ordinate_data='x_array_th_local', column_types=column_types_main, mode='TMS', hdidelta_a_cutoff=h_hdidelta_a_cutoff(), skip=skip)
+        plot_scivariables_relation(data, ordinate_data='x_array_th_local', column_types=column_types_main, mode='TSS', hdidelta_a_cutoff=h_hdidelta_a_cutoff(), skip=skip)
+        plot_scivariables_relation(data, ordinate_data='x_array_th_local', column_types=column_types_main, mode='TMS', hdidelta_a_cutoff=h_hdidelta_a_cutoff(), skip=skip)
 
-        # plot_scivariables_relation(data, ordinate_data='x_array_th_local', column_types=column_types_main, mode='TSS', es='_H', site_flag=site.H, hdidelta_a_cutoff=h_hdidelta_a_cutoff(), skip=skip)
-        # plot_scivariables_relation(data, ordinate_data='x_array_th_local', column_types=column_types_main, mode='TMS', es='_H', site_flag=site.H, hdidelta_a_cutoff=h_hdidelta_a_cutoff(), skip=skip)
+        plot_scivariables_relation(data, ordinate_data='x_array_th_local', column_types=column_types_main, mode='TSS', es='_H', site_flag=site.H, hdidelta_a_cutoff=h_hdidelta_a_cutoff(), skip=skip)
+        plot_scivariables_relation(data, ordinate_data='x_array_th_local', column_types=column_types_main, mode='TMS', es='_H', site_flag=site.H, hdidelta_a_cutoff=h_hdidelta_a_cutoff(), skip=skip)
+
 
         # %%
     def plot_scivariables_relation_nice(data, ordinate_data, column_types, column_rename, mode='TMS', es='', site_flag=None,
@@ -2584,7 +2585,7 @@ def main(o_model=None, rl_model="", overwrite=False):
     for ix_intensity in range(len(mapping.get('intensity'))):
         str_intensity = mapping.get('intensity', ix_intensity)
         ylim_ = plot_fac_averaged(Z,pi_candidate, str_intensity, skip=skip)
-        # plot_fac_averaged(Z_non_zero_pi, pi_candidate, str_intensity, es='_non-zero-pi', skip=skip)
+        plot_fac_averaged(Z_non_zero_pi, pi_candidate, str_intensity, es='_non-zero-pi', skip=skip)
 
         if mapping.get('intensity', ix_intensity) == 'supra-sub':
             ylim = ylim_
@@ -3215,12 +3216,383 @@ def main(o_model=None, rl_model="", overwrite=False):
         plot_across_muscle_correlation_scatters_threshold(hbmep_tss, skip=skip)
 
 
+    # %% Correlation between effect strengths across muscles
+    def plot_across_muscle_correlation_scatters_reduced(skip=False):
+        """
+        Plot correlation scatters across muscles, showing r
+        with significance asterisks, fit lines, and custom spines.
+        """
+        if skip:
+            return None
+
+        ix_i = mapping.get_inverse('intensity', 'supra-sub')
+        ix_v = 0
+        s = posterior_samples_grouped['s'][:, :, ix_v, :, :, ix_i, :]
+        mask_local = np.any(mask_muscle[:, ix_v, :, :, ix_i, :], axis=0)
+        s = np.where(mask_local[None, None, :, :, :], s, np.nan)
+        s_mea = np.mean(s, axis=(0, 1))
+
+        vec_s_target = np.zeros((num_participants, 1))
+        vec_s_exclude = np.zeros((num_participants, 1))
+        for ix_p in range(num_participants):
+            ix_c = mapping.get_inverse('condition', mapping.get('participant_condition', ix_p))
+            str_target, ix_target = get_target(target_muscle, muscles, ix_v, ix_p, ix_i)
+            vec_s_target[ix_p, 0] = np.nanmean(s_mea[ix_p, ix_c, [ix_target]])
+            vec_s_exclude[ix_p, 0] = np.nanmean(np.delete(s_mea[ix_p, ix_c, :], ix_target))
+
+        fig_width = 8.0 * CMTI
+        fig_height = 8.0 * CMTI
+
+        fig, axs = plt.subplots(1, 1, figsize=(fig_width, fig_height), squeeze=False)
+        fig.figure_name = 'correlation_muscle_scatter_target_vs_rest'
+
+        ax = axs[0, 0]
+
+        s_mea_1 = vec_s_target[:, 0]
+        s_mea_2 = vec_s_exclude[:, 0]
+
+        for ix_p in range(num_participants):
+            ax.plot(
+                s_mea_2[ix_p],
+                s_mea_1[ix_p],
+                'o',
+                markersize=3,
+                alpha=0.5,
+                markerfacecolor=color_pairing,
+                markeredgecolor='w'
+            )
+
+        x_lo, x_hi = ax.get_xlim()
+        valid_mask = ~np.isnan(s_mea_1) & ~np.isnan(s_mea_2)
+        y_clean = s_mea_1[valid_mask]
+        x_clean = s_mea_2[valid_mask]
+
+        x_fit, y_fit, stats = linear_model(x_clean, y_clean, x_lo, x_hi)
+        ax.plot(x_fit, y_fit, '-', color=color_pairing)
+
+        str_text = rf'$r = {stats["corr_value"]:.2f}^{{{stats["corr_star"]}}}$'
+        ax.text(
+            0.95, 0.05, str_text,
+            transform=ax.transAxes, ha='right', va='bottom', fontsize=4,
+            bbox=dict(facecolor='white', alpha=0.0, edgecolor='none')
+        )
+
+        # Hide top/right spines
+        ax.spines['top'].set(visible=False)
+        ax.spines['right'].set(visible=False)
+        ax.spines['bottom'].set(visible=True, linewidth=2)
+        ax.spines['left'].set(visible=True, linewidth=2)
+        ax.set_xlabel('Target Fac.')
+        ax.set_ylabel('Off-target Fac')
+
+        # Use "nice" tick locators for the panels we keep visible
+        ax.xaxis.set_major_locator(MaxNLocator(nbins=3))
+        ax.yaxis.set_major_locator(MaxNLocator(nbins=3))
+
+        fig.tight_layout()
+
+        write_figure(fig, d_analysis, show)
+
+
+    if num_muscles > 1:
+        plot_across_muscle_correlation_scatters_reduced(skip=skip)
+
+
     # %%
+    def plot_s_hdis_again(skip=False):
+        if skip:
+            return False
+        s_hdi = compute_hdi(posterior_samples_grouped['s'])
+
+        colors = plt.colormaps['tab20'](np.linspace(0, 1, num_participants))  # Use a colormap with enough distinct colors
+
+        fig, axs = plt.subplots(num_muscles, 1, figsize=(15, num_muscles * 3), sharex=True, squeeze=False)
+        fig.figure_name = f's_hdi_again.png'
+
+        # Loop through each muscle and plot the HDI for all participants and visits sequentially
+        mk_i = ['o-', 'o--']
+        vec_cxsc = [i for i in [mapping.get_inverse('intensity', 'supra-sub')]]
+        for ix_m in range(num_muscles):
+            str_muscle = mapping.get('muscle', ix_m)
+            ax = axs[ix_m, 0]
+            max_abs_ylim = 0  # Variable to track the maximum absolute y-limit
+
+            for ix_p in range(num_participants):
+                ix_c = mapping.get_inverse('condition', mapping.get('participant_condition', ix_p))
+                for ix_i, cxsc in enumerate(vec_cxsc):
+                    x = ix_p * num_visits + ix_i * 0.5
+                    for ix_v in range(num_visits):
+                        if mask_visit[ix_v, ix_p, ix_i, ix_i, ix_m]:
+                            xv = x + ((1+ix_v)/num_visits) * 3
+                            y1 = s_hdi[ix_v, ix_p, ix_c, ix_i, ix_m, 0]
+                            y2 = s_hdi[ix_v, ix_p, ix_c, ix_i, ix_m, 1]
+                            ax.plot([xv, xv], [y1, y2], mk_i[ix_i], label=f'P{ix_p + 1}', color=colors[ix_p], zorder=1)
+
+        fig.tight_layout()
+
+        write_figure(fig, d_analysis, show)
+
+
+    plot_s_hdis_again(skip=skip)
+
+
+            # %%
     variables_to_plot = ['scale_w', 'scale_s', 'scale_loc_s']  # pop_bell1_mean
     plot_posteriors(cfg, posterior_samples, variables_to_plot, mapping, None, d_analysis / 'dist_pop.png', show=show, skip=skip)
 
 
-   # %%
+    # %%
+    if (cfg['DATA_OPTIONS']['type'] == 'intraoperative') and (num_muscles == 1):
+        def plot_intraoperative_vs_mcintosh2024(skip=False):
+            if skip:
+                return None
+            f_jp_io = "tjp16074-sup-0002-datas1.xlsx"
+            p_jp2024_data = cfg['DATA_FOLDER']['intraoperative'].parent / f_jp_io
+            if not p_jp2024_data.exists():
+                print(f"Download {f_jp_io} from https://doi.org/10.1113/JP286183 and put it in:\n{p_jp2024_data.parent}" )
+            df_jp2024_3a = pd.read_excel(p_jp2024_data, sheet_name="Figure 3A", skiprows=1, usecols="B:M")
+            df_jp2024_3a.loc[:, df_jp2024_3a.columns != 'Row'] = df_jp2024_3a.loc[:, df_jp2024_3a.columns != 'Row'] * 100
+            df_jp2024_3a.rename(columns={'Row': 'participant'}, inplace=True)
+            df_jp2024_3a['participant'] = 'SCA' + df_jp2024_3a['participant'].astype(str)
+
+            isi_columns = [col for col in df_jp2024_3a.columns if col.startswith("ISI")]
+
+            # Compute the mean and standard error across participants (ignoring NaNs)
+            mean_values = df_jp2024_3a[isi_columns].mean(axis=0, skipna=True)
+            std_values = df_jp2024_3a[isi_columns].std(axis=0, skipna=True)
+            count_values = df_jp2024_3a[isi_columns].count(axis=0)
+            stderr_values = std_values / np.sqrt(count_values)
+
+            x_values = [int(col.replace("ISI", "")) for col in isi_columns]
+
+            # Sort the data by ISI value
+            sorted_data = sorted(zip(x_values, mean_values, stderr_values), key=lambda t: t[0])
+            x_sorted, y_sorted, err_sorted = zip(*sorted_data)
+
+            ix_i = mapping.get_inverse('intensity', 'supra-sub')
+            ix_v = 0
+            s = posterior_samples_grouped['s'][:, :, ix_v, :, :, ix_i, :]
+            mask_local = np.any(mask_muscle[:, ix_v, :, :, ix_i, :], axis=0)
+            s = np.where(mask_local[None, None, ...], s, np.nan).squeeze()
+            s_resort = s[..., [mapping.get_inverse('alias', p) for p in df_jp2024_3a['participant']]]
+
+            s_cen = compute_central(s_resort, op='median')
+            s_hdi = compute_hdi(s_resort)
+            f_cen = pctchg(s_cen)
+            f_hdi = pctchg(s_hdi)
+
+            # x = df_jp2024_3a.loc[:, df_jp2024_3a.columns != 'participant'].max(axis=1).values
+            isi_subset = ['ISI6', 'ISI7', 'ISI8', 'ISI9', 'ISI10', 'ISI11', 'ISI12']
+            x = df_jp2024_3a[isi_subset].max(axis=1).values
+
+            fig_width = 17.6 * CMTI
+            fig_height = 8 * CMTI
+            figsize = (fig_width, fig_height)
+            fig, axs = plt.subplots(1, 3, figsize=figsize, squeeze=False, constrained_layout=True, dpi=300)
+            fig.figure_name = f'intraop_facilitation_original'
+            ax = axs[0, 0]
+            ax.bar(x_sorted, y_sorted, yerr=err_sorted, capsize=3, color='gray')
+            ax.set_xlabel("Inter-stimulus interval (ms)")
+            ax.set_ylabel("% Facilitation (McIntosh et al. 2024)")
+            l = -100
+            ax.set_ylim(bottom=l, top=800)
+            for spine in ['top', 'right']:
+                ax.spines[spine].set_visible(False)
+            ax.set_box_aspect(1)
+
+            ax = axs[0, 1]
+            x_used = x
+            y_used = f_cen
+            hdi_used = f_hdi
+
+            plot_with_fit(ax, x_used, y_used, color='k', linestyle='-', title=None, xlabel=None, ylabel=None, add_offset=True,
+                          flip_pr_text_location=True, show_n=False)
+            for ix in range(len(x_used)):
+                ax.plot(x_used[ix] * np.ones(2), hdi_used[ix, :], '-', linewidth=0.5, color=np.ones((1, 4))*0.5)
+
+            u = np.max([ax.get_xlim()[-1], ax.get_ylim()[-1]])
+
+            ax.set_xlim(left=l, right=u)
+            ax.set_ylim(bottom=l, top=u)
+            ax.plot([l, u], [l, u], 'k--')
+
+
+            ax.set_xlabel('% Facilitation (McIntosh et al. 2024)')
+            ax.set_ylabel('% Facilitation (model)')
+            ax.set_box_aspect(1)
+            ax = axs[0, 2]
+
+            x_used = np.log2((x / 100) + 1)
+            y_used = s_cen
+            hdi_used = s_hdi
+
+            plot_with_fit(ax, x_used, y_used, color='k', linestyle='-', title=None, xlabel=None, ylabel=None,
+                          add_offset=True,
+                          flip_pr_text_location=True, show_n=False)
+            for ix in range(len(x_used)):
+                ax.plot(x_used[ix] * np.ones(2), hdi_used[ix, :], '-', linewidth=0.5, color=np.ones((1, 4)) * 0.5)
+
+            l, u = -2, 6
+            ax.set_xlim(left=l, right=u)
+            ax.set_ylim(bottom=l, top=u)
+            ax.plot([l, u], [l, u], 'k--')
+
+            ax.set_xlabel("$log_{2}$ Facilitation (McIntosh et al. 2024)")
+            ax.set_ylabel('$log_{2}$ Facilitation (model)')
+            ax.set_box_aspect(1)
+            write_figure(fig, d_analysis, show)
+
+
+        plot_intraoperative_vs_mcintosh2024(skip=skip)
+
+
+    # %%
+    def plot_maximum_intensity(cfg, skip=False):
+        if skip:
+            return None
+
+        cfg_local = deepcopy(cfg)
+        cfg_local["DATA_OPTIONS"]["response_transform"] = "linear"
+        data_local, mapping_local, mep_local, mep_channel_local = filter_ni(cfg_local, overwrite=False, ie_only=False, es=es)
+
+        # bad that this is hardcoded.... (!!!) It is technically in the npz/mat file that gets loaded.
+        mep_window = [-0.25, 0.25]
+        t_slice_win = 0.085
+        t_slice_min = 5e-3
+        mep_indexing = np.array([list(mep_channel_local).index(channel) for channel in muscles if channel in mep_channel_local])
+        mep_stype = mep_local[mep_indexing, :, :]
+        n_r, n_c = optimal_division(num_participants, priority="columns")
+        fig_width = 17.6 * CMTI
+        fig_height = 15 * CMTI
+
+        for str_intensity in ["TMSInt", "TSCSInt"]:
+            if str_intensity == "TSCSInt":
+                units = "mA"
+                stim_type = "TSS"
+            elif str_intensity == "TMSInt":
+                units = "% MSO"
+                stim_type = "TMS"
+            else:
+                assert False, "!"
+            for ix_m in range(num_muscles):
+                str_muscle = mapping.get("muscle", ix_m)
+                c_muscle = colors[vec_muscle_color == str_muscle, :]
+
+                fig, axs = plt.subplots(n_r, n_c,
+                    figsize=(fig_width, fig_height),
+                    squeeze=False,
+                    constrained_layout=True,
+                    sharey=True,
+                    dpi=300
+                )
+
+                fig.figure_name = f"mep_maxintensity_{stim_type}_{str_muscle}"
+                axs_s = axs.ravel()
+                for ix_p in range(len(axs_s)):
+                    ax = axs_s[ix_p]
+                    str_p = mapping.get("participant", ix_p)
+                    if str_p is None:
+                        ax.set_visible(False)
+                        continue
+
+                    ix_c = mapping.get_inverse("condition", mapping.get("participant_condition", ix_p))
+                    case_p = data_local["participant"] == str_p
+                    case_stim_type = data_local["stim_type"] == stim_type
+                    df_local = deepcopy(data_local.loc[case_p & case_stim_type, :])
+                    rc_mep = mep_stype[:, :, df_local.index]
+
+                    df_local.reset_index(drop=True, inplace=True)
+                    unique_intensity = np.sort(df_local[str_intensity].unique())[::-1]
+                    for intensity_val in unique_intensity:
+                        case_mask = df_local[str_intensity] == intensity_val
+                        rc_mep_ = deepcopy(rc_mep[:, :, case_mask])
+                        X = np.nanmean(rc_mep_[ix_m, :, :], axis=-1)
+                        if np.any(np.isfinite(X)):
+                            break
+                    t = np.linspace(mep_window[0], mep_window[1], X.shape[0])
+                    c = colors_condition[ix_c, :]
+                    t_min_idx = np.searchsorted(t, t_slice_min, side="left")
+                    t_max_idx = np.searchsorted(t, t_slice_min + t_slice_win, side="right")
+                    t_slice = t[t_min_idx:t_max_idx]
+                    X_slice = X[t_min_idx:t_max_idx]
+
+                    auc_recalc = np.trapezoid(np.abs(X_slice), t_slice)
+                    auc_from_table = np.mean(df_local.loc[case_mask, str_muscle])
+
+                    ax.plot(t, X, "-", color=c)
+                    ax.set_box_aspect(1)
+                    ax.spines["top"].set_visible(False)
+                    ax.spines["right"].set_visible(False)
+                    ax.set_title(str_p, color=c)
+                    ax.set_xlim([0, 0.06])
+                    str_muscle_ = str_muscle.replace("auc_target", "target")
+                    str_text = f"{str_muscle_}, {intensity_val}{units},\nAUC = {auc_recalc:0.1f}"  # ,{auc_from_table:0.1f}
+                    ax.text(
+                        0.05, 0.98, str_text, color=c_muscle,
+                        transform=ax.transAxes, ha="left", va="top", fontsize=4,
+                        bbox=dict(facecolor="white", alpha=0.0, edgecolor="none")
+                    )
+                    ax.grid(True, linestyle="--", linewidth=0.5, alpha=0.7)
+
+                write_figure(fig, d_analysis, show)
+
+
+    if (cfg["DATA_OPTIONS"]["type"] == "noninvasive"):
+        plot_maximum_intensity(cfg, skip=h_skip_slow_plots())
+
+
+    # %% Generate new SPI_target for prediction
+    def plot_full_predictions(skip=False):
+        if skip:
+            return None
+        single_average_count = 1
+        if cfg["DATA_OPTIONS"]["type"] == "noninvasive":
+            pi_candidate_local = np.arange(-15.5, 16.0, 0.1).reshape(-1, 1)
+        elif cfg["DATA_OPTIONS"]["type"] == "intraoperative":
+            pi_candidate_local = np.arange(-10, 10.2, 0.2).reshape(-1, 1)
+        new_time = np.ones(pi_candidate_local.shape).reshape(-1, 1) * 0.2  # this won't work if run 1 is absent
+        average_count = np.ones(new_time.shape) * single_average_count
+
+        vec_cxsc = [i for i in [mapping.get_inverse("intensity", "supra-sub"), mapping.get_inverse("intensity", "sub-sub")]
+                    if i is not None]
+        for single_cxsc in vec_cxsc:
+            pred_means_new, pred_intervals_new = generate_predictions(cfg, pi_candidate_local, new_time, condition_index,
+                                                                      participant_index,
+                                                                      visit_index, single_cxsc, data, predictive, rng_key,
+                                                                      response_obs, num_samples_pred, average_count)
+
+            plot_data_with_posterior_predictive(cfg, response_obs, pi, data["condition_index"], data["participant_index"],
+                                                data["visit_index"], data["cxsc_index"],
+                                                data["run_index"], data['average_count'], single_cxsc, pred_means_new, pred_intervals_new,
+                                                pi_candidate_local, mapping, "PI", d_analysis / "pp_spi.svg")
+
+
+        # Generate new time prediction
+        single_average_count = 1
+        if cfg["DATA_OPTIONS"]["type"] == "noninvasive":
+            new_time = np.linspace(0, 1.2, 50).reshape(-1, 1)
+        elif cfg["DATA_OPTIONS"]["type"] == "intraoperative":
+            new_time = np.linspace(0, 2.5, 50).reshape(-1, 1)
+        pi_candidate_local = np.ones(new_time.shape).reshape(-1, 1) * 100  # i.e. when there is no PI
+        average_count = np.ones(new_time.shape)
+
+        vec_cxsc = np.sort(np.unique(cxsc_index))
+        for single_cxsc in vec_cxsc:
+            pred_means_new, pred_intervals_new = generate_predictions(cfg, pi_candidate_local, new_time, condition_index,
+                                                                      participant_index,
+                                                                      visit_index, single_cxsc, data, predictive, rng_key,
+                                                                      response_obs, num_samples_pred, average_count)
+
+            plot_data_with_posterior_predictive(cfg, response_obs, time, data["condition_index"], data["participant_index"],
+                                                data["visit_index"], data["cxsc_index"],
+                                                data["run_index"], data['average_count'], single_cxsc, pred_means_new, pred_intervals_new,
+                                                new_time, mapping, "time", d_analysis / "pp_time.svg")
+
+
+    plot_full_predictions(skip=h_skip_slow_plots())
+
+
+    # %%
     print(f'Done with:\n{d_analysis}')
 
 
