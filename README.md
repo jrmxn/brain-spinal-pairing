@@ -34,7 +34,7 @@
 
    This creates and activates the environment `brain-spinal-pairing`.  
 
-   > Note: Versioning tied to the manuscript is available under specific releases.  
+   > Note: Versioning tied to the manuscript is available under specific releases. medRxiv version DOI is [Zenodo](https://doi.org/10.5281/zenodo.15251949). 
    > Installation tested on Ubuntu 24.04 and 22.04 (WSL).
 
 3. **Running**  
