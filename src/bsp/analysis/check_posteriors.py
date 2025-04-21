@@ -1854,8 +1854,8 @@ def main(o_model=None, rl_model="", overwrite=False):
 
 
     if cfg['DATA_OPTIONS']['type'] == 'noninvasive':
-        plot_intensity_relations(mode='TSS', hdidelta_a_cutoff=None, mark_participants=False, skip=skip)
-        plot_intensity_relations(mode='TMS', hdidelta_a_cutoff=None, mark_participants=False, skip=skip)
+        plot_intensity_relations(mode='TSS', hdidelta_a_cutoff=h_hdidelta_a_cutoff(), mark_participants=False, skip=skip)
+        plot_intensity_relations(mode='TMS', hdidelta_a_cutoff=h_hdidelta_a_cutoff(), mark_participants=False, skip=skip)
 
 
     # %%
