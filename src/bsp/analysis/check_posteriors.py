@@ -2036,12 +2036,59 @@ def main(o_model=None, rl_model="", overwrite=False):
 
 
     if (cfg['DATA_OPTIONS']['type'] == 'noninvasive') and ('co' in str(p_model)):
-        plot_scivariables_relation(data, ordinate_data='y_array_fac_pct', column_types=column_types_main, hdidelta_a_cutoff=h_hdidelta_a_cutoff(), skip=skip)
-        plot_scivariables_relation(data, ordinate_data='x_array_th_local', column_types=column_types_main, mode='TSS', hdidelta_a_cutoff=h_hdidelta_a_cutoff(), skip=skip)
-        plot_scivariables_relation(data, ordinate_data='x_array_th_local', column_types=column_types_main, mode='TMS', hdidelta_a_cutoff=h_hdidelta_a_cutoff(), skip=skip)
+        column_types_ext = deepcopy(column_types_main)
+        column_types_ext['UEMS'] = False
+        plot_scivariables_relation(data, ordinate_data='y_array_fac_pct', column_types=column_types_ext, hdidelta_a_cutoff=h_hdidelta_a_cutoff(), skip=skip)
+        plot_scivariables_relation(data, ordinate_data='x_array_th_local', column_types=column_types_ext, mode='TSS', hdidelta_a_cutoff=h_hdidelta_a_cutoff(), skip=skip)
+        plot_scivariables_relation(data, ordinate_data='x_array_th_local', column_types=column_types_ext, mode='TMS', hdidelta_a_cutoff=h_hdidelta_a_cutoff(), skip=skip)
 
-        plot_scivariables_relation(data, ordinate_data='x_array_th_local', column_types=column_types_main, mode='TSS', es='_H', site_flag=site.H, hdidelta_a_cutoff=h_hdidelta_a_cutoff(), skip=skip)
-        plot_scivariables_relation(data, ordinate_data='x_array_th_local', column_types=column_types_main, mode='TMS', es='_H', site_flag=site.H, hdidelta_a_cutoff=h_hdidelta_a_cutoff(), skip=skip)
+        plot_scivariables_relation(data, ordinate_data='x_array_th_local', column_types=column_types_ext, mode='TSS', es='_H', site_flag=site.H, hdidelta_a_cutoff=h_hdidelta_a_cutoff(), skip=skip)
+        plot_scivariables_relation(data, ordinate_data='x_array_th_local', column_types=column_types_ext, mode='TMS', es='_H', site_flag=site.H, hdidelta_a_cutoff=h_hdidelta_a_cutoff(), skip=skip)
+
+
+# %%
+    if (cfg['DATA_OPTIONS']['type'] == 'noninvasive'):
+        def plot_tms_vs_tss(data, site_flag=site.a, cutoff=h_hdidelta_a_cutoff()):
+            x_array_th_tss, _, _ = extract_s_vs_threshold(posterior_samples_grouped, muscles, hbmep_tss,
+                                                                          mapping, mask_muscle, data, site_flag=site_flag,
+                                                                          hdidelta_a_cutoff=cutoff)
+
+            x_array_th_tms, _, _ = extract_s_vs_threshold(posterior_samples_grouped, muscles, hbmep_tms,
+                                                                              mapping, mask_muscle, data, site_flag=site_flag,
+                                                                              hdidelta_a_cutoff=cutoff)
+
+            n_rows = num_muscles
+            fig_width = 11.6 * CMTI
+            fig_height = CMTI * (4 * num_muscles + 1)
+            fig, axs = plt.subplots(n_rows, 2, figsize=(fig_width, fig_height),
+                                    squeeze=False, constrained_layout=True, dpi=300)
+            fig.figure_name = "tms_vs_tss_" + site_flag
+            for ix_m in range(n_rows):
+                str_muscle = mapping.get("muscle", ix_m)
+                c = colors[vec_muscle_color == str_muscle, :]
+
+                ax = axs[ix_m, 0]
+                x, y = x_array_th_tss[:, ix_m], x_array_th_tms[:, ix_m]
+                plot_with_fit(ax, x, y,
+                              xlabel='TSS (mA)',
+                              ylabel='TMS (% MSO)',
+                              color=c,
+                              )
+                ax.set_box_aspect(1)
+
+                case_sci = [mapping.get('participant_condition', i) == "SCI" for i in range(x_array_th_tss.shape[0])]
+                ax = axs[ix_m, 1]
+                plot_with_fit(ax, x[case_sci], y[case_sci],
+                              xlabel='TSS (mA)',
+                              ylabel='TMS (% MSO)',
+                              color=colors_condition[mapping.get_inverse("condition", "SCI"), :],
+                              )
+
+                ax.set_box_aspect(1)
+            write_figure(fig, d_analysis, show)
+
+        plot_tms_vs_tss(data)
+        plot_tms_vs_tss(data, site_flag=site.H, cutoff=None)
 
 
         # %%
