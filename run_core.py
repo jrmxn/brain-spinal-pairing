@@ -22,7 +22,7 @@ if args.functions_list is None:
 else:
     functions_list = args.functions_list
 
-exp_list_full = ['ni_target', 'ni', 'io_mcintosh2024_cgtarget', 'io_mcintosh2024_cgtarget_mtarget', 'ni_noexc', 'ni_target_without_b', 'io_mcintosh2024_cgtarget_mtarget_with_b']  # 'ni_noexc'
+exp_list_full = ['ni_target', 'ni', 'io_mcintosh2024_cgtarget_anterior', 'io_mcintosh2024_cgtarget', 'io_mcintosh2024_cgtarget_mtarget', 'ni_noexc', 'ni_target_without_b', 'io_mcintosh2024_cgtarget_mtarget_with_b', 'io_mcintosh2024_cgtarget_anterior', 'io_mcintosh2024_cgtarget_mtarget_anterior']  # 'ni_noexc'
 if args.exp_list is None:
     exp_list = ['ni_target', 'ni']
 else:
@@ -83,6 +83,33 @@ def run_model(f, e, sleep_range=(0, 15), make_plots=False):
         if 'io_mcintosh2024_cgtarget_mtarget_with_b' == e:
             cfg['MODEL_OPTIONS']['use_b'] = True
             cfg['DATA_OPTIONS']['es'] = cfg['DATA_OPTIONS']['es'] + 'withb_'
+
+    elif 'io_mcintosh2024_cgtarget_anterior' == e:
+        cfg['DATA_OPTIONS']['type'] = 'intraoperative'
+        cfg['DATA_OPTIONS']['es'] = cfg['DATA_OPTIONS']['es'] + 'mcgtarget_anterior_'
+        cfg['DATA_OPTIONS']['response'] = ['ECR', 'FCR', 'APB', 'ADM']
+        cfg['DATA_OPTIONS']['intensities'] = ['supra-sub']
+        cfg['DATA_OPTIONS']['visit'] = 'mcintosh2024'
+        cfg['DATA_OPTIONS']['intraoperative'][0] = 'global_target'  # as in average across partcipants (global) target muscle
+        cfg['MODEL_OPTIONS']['use_b'] = False
+        cfg['MODEL_OPTIONS']['scale_c_prior'] = 1.0
+        cfg['DATA_FOLDER']['intraoperative'] = cfg['DATA_FOLDER']['intraoperative'].with_name('np_anterior_2025-09-09')
+        print(f"Changed data folder to\n{cfg['DATA_FOLDER']['intraoperative']}")
+
+    elif ('io_mcintosh2024_cgtarget_mtarget_anterior' == e) or ('io_mcintosh2024_cgtarget_mtarget_with_b_anterior' == e):
+        cfg['DATA_OPTIONS']['type'] = 'intraoperative'
+        cfg['DATA_OPTIONS']['es'] = cfg['DATA_OPTIONS']['es'] + 'mcgtarget_anterior_'
+        cfg['DATA_OPTIONS']['visit'] = 'mcintosh2024'
+        cfg['DATA_OPTIONS']['response'] = ['auc_target']
+        cfg['DATA_OPTIONS']['intensities'] = ['supra-sub']
+        cfg['DATA_OPTIONS']['intraoperative'][0] = 'global_target'  # as in average across partcipants (global) target muscle
+        cfg['MODEL_OPTIONS']['use_b'] = False
+        cfg['MODEL_OPTIONS']['scale_c_prior'] = 1.0
+        if 'io_mcintosh2024_cgtarget_mtarget_with_b' == e:
+            cfg['MODEL_OPTIONS']['use_b'] = True
+            cfg['DATA_OPTIONS']['es'] = cfg['DATA_OPTIONS']['es'] + 'withb_'
+        cfg['DATA_FOLDER']['intraoperative'] = cfg['DATA_FOLDER']['intraoperative'].with_name('np_anterior_2025-09-09')
+        print(f"Changed data folder to\n{cfg['DATA_FOLDER']['intraoperative']}")
 
     if (cfg['DATA_OPTIONS']['type'] == 'intraoperative') and ('co' in f):
         print('SKIPPING condition model, for intraoperative data!')

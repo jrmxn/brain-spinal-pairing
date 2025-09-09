@@ -719,12 +719,12 @@ def main(o_model=None, rl_model="", overwrite=False):
     h_hdidelta_a_cutoff = lambda : 30  # 20
     str_ex = lambda : rl_model
 
-    d_analysis = BASE_DIR / "analysis" / str_ex() / o_model
+    d_analysis = BASE_DIR.with_name("analysis") / str_ex() / o_model
     print(d_analysis)
 
     f_model = "mcmc_model.pkl"
     p_model = None
-    for path in (BASE_DIR / 'bsp').rglob(f"**/{o_model}/{f_model}"):
+    for path in (BASE_DIR).rglob(f"**/{o_model}/{f_model}"):
         p_model = path
         break
 
@@ -744,8 +744,12 @@ def main(o_model=None, rl_model="", overwrite=False):
 
     cfg_file_path = p_model.with_stem("config").with_suffix(".toml")
     cfg = toml.load(cfg_file_path)
-    cfg["DATA_FOLDER"] = DATA_FOLDER
-
+    cfg["DATA_FOLDER"] = DATA_FOLDER  # if you change computer ... but watch out between anterior/posterior data switch
+    is_anterior = False
+    if 'anterior' in cfg['DATA_OPTIONS']['es']:  # HACKY - because anterior and posterior should just be int he same file and selected with options. Or treated as two fully different modes e.g. ni, io_post, io_ante
+        cfg['DATA_FOLDER']['intraoperative'] = cfg['DATA_FOLDER']['intraoperative'].with_name('np_anterior_2025-09-09')
+        is_anterior = True
+        
     shutil.copy(cfg_file_path, d_analysis / "config.toml")
     shutil.copy(p_model.with_stem("summary").with_suffix(".csv"), d_analysis / "summary_hbmep.csv")
 
@@ -3389,7 +3393,7 @@ def main(o_model=None, rl_model="", overwrite=False):
 
 
     # %%
-    if (cfg['DATA_OPTIONS']['type'] == 'intraoperative') and (num_muscles == 1):
+    if (cfg['DATA_OPTIONS']['type'] == 'intraoperative') and (num_muscles == 1) and not is_anterior:
         def plot_intraoperative_vs_mcintosh2024(skip=False):
             if skip:
                 return None
