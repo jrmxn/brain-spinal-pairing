@@ -749,7 +749,7 @@ def main(o_model=None, rl_model="", overwrite=False):
     if 'anterior' in cfg['DATA_OPTIONS']['es']:  # HACKY - because anterior and posterior should just be int he same file and selected with options. Or treated as two fully different modes e.g. ni, io_post, io_ante
         cfg['DATA_FOLDER']['intraoperative'] = cfg['DATA_FOLDER']['intraoperative'].with_name('np_anterior_2025-09-09')
         is_anterior = True
-        
+
     shutil.copy(cfg_file_path, d_analysis / "config.toml")
     shutil.copy(p_model.with_stem("summary").with_suffix(".csv"), d_analysis / "summary_hbmep.csv")
 
@@ -2312,7 +2312,7 @@ def main(o_model=None, rl_model="", overwrite=False):
                 ax.plot(result['spi'], result['x1ox0'], 'o', color=c, alpha=0.1)
 
 
-    def plot_participant_facilitation(pi_candidate, skip=False):
+    def plot_participant_facilitation(pi_candidate, ylim=None, es='', skip=False):
         """
         Wrapper that sets up the figure(s), loops over participants/muscles/visits,
         and calls `plot_facilitation_single` for each subplot.
@@ -2357,7 +2357,7 @@ def main(o_model=None, rl_model="", overwrite=False):
             str_muscle = mapping.get('muscle', ix_m)
 
             fig, axs = plt.subplots(n_r, n_c, figsize=(3 * n_c, 3 * n_r), sharex=True, sharey=False)
-            fig.figure_name = f'fac_participants_{str_muscle}'
+            fig.figure_name = f'fac_participants_{str_muscle}{es}'
 
             axs = np.reshape(axs, -1)
 
@@ -2374,15 +2374,16 @@ def main(o_model=None, rl_model="", overwrite=False):
                 ax.set_title(str_alias + ' ' + str_participant)
 
                 # Decide y-limits by data type
-                if cfg['DATA_OPTIONS']['type'] == 'intraoperative':
-                    if ix_plot < n_c:
-                        ylim = [-150, 7000]
-                    elif ix_plot < n_c * 2:
-                        ylim = [-150, 7000]
+                if ylim is None:
+                    if cfg['DATA_OPTIONS']['type'] == 'intraoperative':
+                        if ix_plot < n_c:
+                            ylim = [-150, 7000]
+                        elif ix_plot < n_c * 2:
+                            ylim = [-150, 7000]
+                        else:
+                            ylim = [-150, 1250]
                     else:
-                        ylim = [-150, 1250]
-                else:
-                    ylim = [-100, +100]
+                        ylim = [-100, +100]
 
                 # Figure out the condition index, muscle/target index
                 ix_c = mapping.get_inverse('condition', mapping.get('participant_condition', ix_p))
@@ -2457,6 +2458,9 @@ def main(o_model=None, rl_model="", overwrite=False):
         write_figure(fig, d_analysis, show)
 
     plot_participant_facilitation(pi_candidate, skip=skip)
+    if not (cfg['DATA_OPTIONS']['type'] == 'noninvasive'):
+        # so you can extract SCAP49 (P36) which is the example in the original intraop paper:
+        plot_participant_facilitation(pi_candidate, skip=skip, ylim=[-50, 500], es="_zoom")
 
 
     # %%
