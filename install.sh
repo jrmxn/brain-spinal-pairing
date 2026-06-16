@@ -1,28 +1,29 @@
 #!/bin/bash
+# This script sets up a local .venv using the python-311 conda environment.
 
-# Check if the hbie environment already exists
-if conda info --envs | grep -q "^hbie"; then
-  # Remove the existing hbie environment
-  conda env remove --name hbie -y
+# Load conda functions
+CONDA_BASE=$(conda info --base)
+source "$CONDA_BASE/etc/profile.d/conda.sh"
+
+echo "Activating conda environment: python-311..."
+conda activate python-311
+
+if [ $? -ne 0 ]; then
+    echo "Error: Failed to activate conda environment 'python-311'."
+    exit 1
 fi
 
-# Create the hbie environment with Python 3.11
-conda create --name hbie python=3.11 -y
+echo "Creating virtual environment in .venv..."
+python -m venv .venv
 
-# Activate the hbie environment
-source activate hbie
+echo "Installing dependencies..."
+./.venv/bin/pip install --upgrade pip
+./.venv/bin/pip install .[dev]
 
-# Verify that the environment was activated
-if [[ "$CONDA_DEFAULT_ENV" == "hbie" ]]; then
-  echo "Environment hbie activated successfully."
+# ./.venv/bin/pip uninstall jax jaxlib
+# ./.venv/bin/pip install -U "jax[cuda12_pip]" -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
 
-  # Install the required packages in development mode
-  pip install .[dev]
-else
-  echo "Failed to activate environment hbie."
-  exit 1
-fi
-
-# pip uninstall jax jaxlib
-
-# pip install -U "jax[cuda12_pip]" -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
+echo "-------------------------------------------------------"
+echo "Setup complete!"
+echo "Activate the environment with: source .venv/bin/activate"
+echo "-------------------------------------------------------"

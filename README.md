@@ -24,15 +24,19 @@
    - If you don't already have **conda** or **miniconda**, install it from the [Miniconda download page](https://docs.conda.io/en/latest/miniconda.html).  
    - On **Windows**, we recommend using Windows Subsystem for Linux (WSL). Setup instructions are available [here](https://learn.microsoft.com/en-us/windows/wsl/install).
 
-   After downloading the project files and navigating to the project folder:
+   After downloading the project files and navigating to the project folder, you can set up the environment by running the included setup script:
+
+   > **Note**: The setup script requires a conda environment named `python-311`. If you don't have it already, you can create it by running: `conda create --name python-311 python=3.11 -y`
 
    ```bash
-   conda create --name brain-spinal-pairing python=3.11
-   conda activate brain-spinal-pairing
-   pip install .         # or: pip install .[dev]
+   ./install.sh
    ```
 
-   This creates and activates the environment `brain-spinal-pairing`.  
+   This will use the `python-311` conda environment to create a local `.venv` virtual environment and install the dependencies. After installation, activate it with:
+
+   ```bash
+   source .venv/bin/activate
+   ```
 
    > Note: Versioning tied to the manuscript is available under specific releases. medRxiv version DOI is [Zenodo](https://doi.org/10.5281/zenodo.15251949). 
    > Installation tested on Ubuntu 24.04 and 22.04 (WSL).
