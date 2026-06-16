@@ -7,7 +7,8 @@ vs = importlib.metadata.version('brain-spinal-pairing')
 # Default configurations
 DATA_FOLDER = {
                 'noninvasive': Path.home() / 'pairing' / 'data' / 'noninvasive',
-                'intraoperative': None
+                'intraoperative': None,
+                'scapnerve': None,
               }
 
 BASE_DIR = Path(Path.home() / 'pairing' / 'proc')
@@ -19,7 +20,7 @@ intraoperative_opt = ['global_average',  # adjust_for_spi: None or 'average' or 
                       ]
 
 DATA_OPTIONS = {
-                'type': 'noninvasive',  # 'noninvasive', 'intraoperative'
+                'type': 'noninvasive',  # 'noninvasive', 'intraoperative', 'scapnerve'
                 'participants': 'all',  # 'all' or ['SCA01', 'SCA02', ...]
                 'visit': 'all', # 'all' for ni or 'mcintosh2024' for intraop
                 'intensities': ['supra-sub', 'sub-sub'],  # 'supra-sub', 'sub-sub', 'supra-zero', 'sub-zero', 'zero-sub',

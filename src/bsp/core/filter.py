@@ -891,6 +891,9 @@ def filter_data(cfg, overwrite=True, es=''):
         df, mapping, mep, mep_ch = filter_io(cfg, overwrite=overwrite, es=es)
     elif cfg['DATA_OPTIONS']['type'] == 'noninvasive':
         df, mapping, mep, mep_ch = filter_ni(cfg, overwrite=overwrite, es=es)
+    elif cfg['DATA_OPTIONS']['type'] == 'scapnerve':
+        # TODO: RESUME HERE
+        df, mapping, mep, mep_ch = filter_sn(cfg, overwrite=overwrite, es=es)
     else:
         raise Exception('???')
     return df, mapping, mep, mep_ch

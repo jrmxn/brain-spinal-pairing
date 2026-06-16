@@ -22,7 +22,7 @@ if args.functions_list is None:
 else:
     functions_list = args.functions_list
 
-exp_list_full = ['ni_target', 'ni', 'io_mcintosh2024_cgtarget_anterior', 'io_mcintosh2024_cgtarget', 'io_mcintosh2024_cgtarget_mtarget', 'ni_noexc', 'ni_target_without_b', 'io_mcintosh2024_cgtarget_mtarget_with_b', 'io_mcintosh2024_cgtarget_anterior', 'io_mcintosh2024_cgtarget_mtarget_anterior']  # 'ni_noexc'
+exp_list_full = ['sn_target', 'sn', 'ni_target', 'ni', 'io_mcintosh2024_cgtarget_anterior', 'io_mcintosh2024_cgtarget', 'io_mcintosh2024_cgtarget_mtarget', 'ni_noexc', 'ni_target_without_b', 'io_mcintosh2024_cgtarget_mtarget_with_b', 'io_mcintosh2024_cgtarget_anterior', 'io_mcintosh2024_cgtarget_mtarget_anterior']  # 'ni_noexc'
 if args.exp_list is None:
     exp_list = ['ni_target', 'ni']
 else:
@@ -110,6 +110,25 @@ def run_model(f, e, sleep_range=(0, 15), make_plots=False):
             cfg['DATA_OPTIONS']['es'] = cfg['DATA_OPTIONS']['es'] + 'withb_'
         cfg['DATA_FOLDER']['intraoperative'] = cfg['DATA_FOLDER']['intraoperative'].with_name('np_anterior_2025-09-09')
         print(f"Changed data folder to\n{cfg['DATA_FOLDER']['intraoperative']}")
+
+    elif ('sn' == e) or ('sn_noexc' == e):
+        cfg['DATA_OPTIONS']['type'] = 'scapnerve'
+        cfg['DATA_OPTIONS']['es'] = cfg['DATA_OPTIONS']['es']
+        cfg['DATA_OPTIONS']['response'] = ['ECR', 'FCR', 'APB', 'ADM', 'FDI']
+        cfg['DATA_OPTIONS']['intensities'] = ['supra-sub', 'sub-sub']
+        if 'ni_noexc' == e:
+            if 'co' in f: return
+            cfg['NI_EXCLUDE'] = []
+            cfg['DATA_OPTIONS']['es'] = cfg['DATA_OPTIONS']['es'] + 'noexc_'
+
+    elif ('sn_target' == e) or ('sn_target_without_b' == e):
+        cfg['DATA_OPTIONS']['type'] = 'scapnerve'
+        cfg['DATA_OPTIONS']['es'] = cfg['DATA_OPTIONS']['es']
+        cfg['DATA_OPTIONS']['response'] = ['auc_target']
+        cfg['DATA_OPTIONS']['intensities'] = ['supra-sub', 'sub-sub']
+        if 'ni_target_without_b' == e:
+            cfg['MODEL_OPTIONS']['use_b'] = False
+            cfg['DATA_OPTIONS']['es'] = cfg['DATA_OPTIONS']['es'] + 'withoutb_'
 
     if (cfg['DATA_OPTIONS']['type'] == 'intraoperative') and ('co' in f):
         print('SKIPPING condition model, for intraoperative data!')
