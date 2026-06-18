@@ -115,7 +115,7 @@ def run_model(f, e, sleep_range=(0, 15), make_plots=False):
         cfg['DATA_OPTIONS']['type'] = 'scapnerve'
         cfg['DATA_OPTIONS']['es'] = cfg['DATA_OPTIONS']['es']
         cfg['DATA_OPTIONS']['response'] = ['FCR', 'APB', 'FDI']
-        cfg['DATA_OPTIONS']['intensities'] = ['a-b']
+        cfg['DATA_OPTIONS']['intensities'] = ['sub-at']
         if 'ni_noexc' == e:
             if 'co' in f: return
             cfg['NI_EXCLUDE'] = []
@@ -125,7 +125,7 @@ def run_model(f, e, sleep_range=(0, 15), make_plots=False):
         cfg['DATA_OPTIONS']['type'] = 'scapnerve'
         cfg['DATA_OPTIONS']['es'] = cfg['DATA_OPTIONS']['es']
         cfg['DATA_OPTIONS']['response'] = ['auc_target']
-        cfg['DATA_OPTIONS']['intensities'] = ['a-b']
+        cfg['DATA_OPTIONS']['intensities'] = ['sub-at']
         if 'ni_target_without_b' == e:
             cfg['MODEL_OPTIONS']['use_b'] = False
             cfg['DATA_OPTIONS']['es'] = cfg['DATA_OPTIONS']['es'] + 'withoutb_'

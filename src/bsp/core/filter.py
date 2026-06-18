@@ -980,7 +980,7 @@ def load_mep_data_sn(data_path):
         'this_visit': df['visit'].iloc[0]
     }
 
-def filter_sn(cfg, overwrite=False, es=''):
+def filter_sn(cfg, overwrite=False, ie_only=True, es=''):
     if cfg['DATA_FOLDER']['scapnerve'] is None:
         print("SCAP nerve data folder is not configured.")
         return None, None, None, None
@@ -990,6 +990,13 @@ def filter_sn(cfg, overwrite=False, es=''):
     p_par = p_out.with_suffix('.parquet')
     p_npa = p_out.with_suffix('.npz')
     p_out.parent.mkdir(exist_ok=True, parents=True)
+
+    star_taget = 'APB'
+    muscle_map = {
+        'cFCR': 'FCR',
+        'cAPB': 'APB',
+        'cFDI': 'FDI',
+    }
 
     if not p_par.exists() or overwrite:
         all_dfs = []
@@ -1032,20 +1039,19 @@ def filter_sn(cfg, overwrite=False, es=''):
         df = pd.concat(all_dfs, ignore_index=True)
         mep = np.concatenate(mep_list, axis=2)
 
-        muscle_map = {
-            'cFCR': 'FCR',
-            'cAPB': 'APB',
-            'cFDI': 'FDI',
-        }
         df.rename(columns=muscle_map, inplace=True)
         mep_ch = [muscle_map.get(ch, ch) for ch in mep_ch]
 
-        if 'ECR' not in df.columns:
-            df['ECR'] = np.nan
-        if 'ECR' not in mep_ch:
-            mep_ch.append('ECR')
-            nan_slice = np.full((1, mep.shape[1], mep.shape[2]), np.nan)
-            mep = np.concatenate([mep, nan_slice], axis=0)
+        if star_taget in df.columns:
+            df['auc_target'] = df[star_taget]
+        else:
+            df['auc_target'] = np.nan
+            df[star_taget] = np.nan
+
+        if 'auc_target' not in mep_ch:
+            mep_slice = mep[[mep_ch_ == star_taget for mep_ch_ in mep_ch], :, :]
+            mep_ch.append('auc_target')
+            mep = np.concatenate([mep, mep_slice], axis=0)
 
         df.to_parquet(p_par, engine='pyarrow', index=False)
         np.savez(p_npa, mep=mep, mep_ch=mep_ch)
@@ -1057,12 +1063,10 @@ def filter_sn(cfg, overwrite=False, es=''):
         mep_ch = list(npzfile['mep_ch'])
 
     # df = df[~((df['cx_voltage'] == 0) | ((df['sc_current'] == 0)))]
-    df = df[df['condition'] == 'cx-es1']
-
-    if 'APB' in df.columns:
-        df['auc_target'] = df['APB']
-    else:
-        df['auc_target'] = np.nan
+    if ie_only:
+        case_ie = df['condition'] == 'cx-es1'
+        df = df[case_ie]
+        mep = mep[:, :, case_ie]
     
     if 'average_count' not in df.columns:
         df['average_count'] = 1
@@ -1089,12 +1093,20 @@ def filter_sn(cfg, overwrite=False, es=''):
     df.reset_index(drop=True, inplace=True)
 
     df['participant_index'] = df['participant'].factorize()[0]
-    
+
+    condition_map = {
+        'cx': 'TMS',
+        'es1': 'TSCS',
+        'cx-es1': 'SCAP',
+    }
+
+    df['stim_type'] = df['condition'].replace(condition_map)
+
     mapping = bidir_dict()
     unique_pairs = df.drop_duplicates('participant_index')[['participant_index', 'participant']]
     mapping.add_mapping('participant', dict(zip(unique_pairs['participant_index'], unique_pairs['participant'])))
     mapping.add_mapping('alias', dict(zip(unique_pairs['participant_index'], unique_pairs['participant'])))
-    
+
     if 'visit' in df.columns:
         stable_categories = np.sort(df['visit'].unique())
         df['visit_index'] = pd.Categorical(df['visit'], categories=stable_categories, ordered=True).codes
@@ -1113,11 +1125,16 @@ def filter_sn(cfg, overwrite=False, es=''):
         df['run_index'] = 0
         mapping.add_mapping('run', {0: '1'})
 
+    df.loc[:, 'participant_condition_original'] = df.loc[:, 'participant_condition'].copy()
     stable_categories = np.sort(df['participant_condition'].unique())
     df['condition_index'] = pd.Categorical(df['participant_condition'], categories=stable_categories, ordered=True).codes
     condition_mapping = {i: category for i, category in enumerate(stable_categories)}
     mapping.add_mapping('condition', condition_mapping)
     
+    unique_condition_pairs = df.drop_duplicates('participant_index')[['participant_index', 'participant_condition']]
+    unique_condition_original_pairs = df.drop_duplicates('participant_index')[['participant_index', 'participant_condition_original']]
+    mapping.add_mapping('participant_condition', dict(zip(unique_condition_pairs['participant_index'], unique_condition_pairs['participant_condition'])))
+    mapping.add_mapping('participant_condition_original', dict(zip(unique_condition_original_pairs['participant_index'], unique_condition_original_pairs['participant_condition_original'])))
     mapping.add_mapping('muscle', dict(zip(range(len(cfg['DATA_OPTIONS']['response'])), cfg['DATA_OPTIONS']['response'])))
 
     if 'cxsc_index' not in df.columns:

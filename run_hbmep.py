@@ -9,7 +9,7 @@ import time
 import random
 from joblib import Parallel, delayed
 import arviz as az
-from src.bsp.core.filter import filter_ni
+from src.bsp.core.filter import filter_ni, filter_sn
 from hbmep.config import Config as ConfigHBMEP
 from hbmep.model.utils import Site as site
 
@@ -33,7 +33,14 @@ if __name__ == "__main__":
 
     # Filter data once
     ie_only = False
-    dfo, mapping, mep, mep_channel = filter_ni(cfg, overwrite=True, ie_only=ie_only, es='hbmep_')
+    data_source = "sn"
+    if data_source == "ni":
+        dfo, mapping, mep, mep_channel = filter_ni(cfg, overwrite=True, ie_only=ie_only, es='hbmep_')
+        muscle_set = ['ECR', 'FCR', 'APB', 'ADM', 'FDI']
+    elif data_source == 'sn':
+        dfo, mapping, mep, mep_channel = filter_sn(cfg, overwrite=True, ie_only=ie_only, es='hbmep_')
+        muscle_set = ['FCR', 'APB', 'FDI']
+
     dfo = dfo.reset_index(drop=True).sort_index()
 
     # Load hbMEP config
@@ -43,7 +50,7 @@ if __name__ == "__main__":
     render_curves = True  # only on re-run though
     all_responses = [
         ['auc_target'],
-        ['ECR', 'FCR', 'APB', 'ADM', 'FDI']
+        muscle_set
     ]
     all_use_condition_features = [False, True]
     all_ix_models = range(len(model_list))
@@ -281,7 +288,7 @@ if __name__ == "__main__":
                 print(f"Error printing: {exc}")
 
 
-    n_jobs = 4
+    n_jobs = 1
     Parallel(n_jobs=n_jobs)(
         delayed(run_experiment)(
             smooth_val,
