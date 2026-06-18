@@ -24,7 +24,7 @@ else:
 
 exp_list_full = ['sn_target', 'sn', 'ni_target', 'ni', 'io_mcintosh2024_cgtarget_anterior', 'io_mcintosh2024_cgtarget', 'io_mcintosh2024_cgtarget_mtarget', 'ni_noexc', 'ni_target_without_b', 'io_mcintosh2024_cgtarget_mtarget_with_b', 'io_mcintosh2024_cgtarget_anterior', 'io_mcintosh2024_cgtarget_mtarget_anterior']  # 'ni_noexc'
 if args.exp_list is None:
-    exp_list = ['ni_target', 'ni']
+    exp_list = ['sn_target']
 else:
     exp_list = args.exp_list
 
@@ -114,8 +114,8 @@ def run_model(f, e, sleep_range=(0, 15), make_plots=False):
     elif ('sn' == e) or ('sn_noexc' == e):
         cfg['DATA_OPTIONS']['type'] = 'scapnerve'
         cfg['DATA_OPTIONS']['es'] = cfg['DATA_OPTIONS']['es']
-        cfg['DATA_OPTIONS']['response'] = ['ECR', 'FCR', 'APB', 'ADM', 'FDI']
-        cfg['DATA_OPTIONS']['intensities'] = ['supra-sub', 'sub-sub']
+        cfg['DATA_OPTIONS']['response'] = ['FCR', 'APB', 'FDI']
+        cfg['DATA_OPTIONS']['intensities'] = ['a-b']
         if 'ni_noexc' == e:
             if 'co' in f: return
             cfg['NI_EXCLUDE'] = []
@@ -125,7 +125,7 @@ def run_model(f, e, sleep_range=(0, 15), make_plots=False):
         cfg['DATA_OPTIONS']['type'] = 'scapnerve'
         cfg['DATA_OPTIONS']['es'] = cfg['DATA_OPTIONS']['es']
         cfg['DATA_OPTIONS']['response'] = ['auc_target']
-        cfg['DATA_OPTIONS']['intensities'] = ['supra-sub', 'sub-sub']
+        cfg['DATA_OPTIONS']['intensities'] = ['a-b']
         if 'ni_target_without_b' == e:
             cfg['MODEL_OPTIONS']['use_b'] = False
             cfg['DATA_OPTIONS']['es'] = cfg['DATA_OPTIONS']['es'] + 'withoutb_'

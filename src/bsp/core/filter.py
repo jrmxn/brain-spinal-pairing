@@ -5,6 +5,8 @@ import numpy as np
 import h5py
 from src.bsp.core.utils import bidir_dict
 import logging
+import os
+import re
 
 DEBUGGING = False
 
@@ -886,13 +888,253 @@ def filter_io(cfg, overwrite=False, es=''):
 
     return df, mapping, None, None
 
+def load_mep_data_sn(data_path):
+    """Loads and preprocesses MEP data from .mat, .csv, and .toml files."""
+    
+    # Determine base path
+    if str(data_path).endswith(('.mat', '.csv', '.toml')):
+        base_path = os.path.splitext(str(data_path))[0]
+    else:
+        base_path = str(data_path)
+
+    try:
+        try:
+            import hdf5storage
+            mat_data = hdf5storage.loadmat(f"{base_path}.mat")
+            ep_sub = mat_data['ep_sub'] # (trials, time, channels)
+            t_sliced = mat_data['t_sliced'] # Ensure 1D
+        except ImportError:
+            import h5py
+            with h5py.File(f"{base_path}.mat", 'r') as f_mat:
+                # h5py reads arrays transposed compared to MATLAB
+                # MATLAB: (trials, time, channels) -> h5py: (channels, time, trials)
+                ep_sub = np.transpose(f_mat['ep_sub'][:], (2, 1, 0))
+                t_sliced = f_mat['t_sliced'][:]
+            
+        df = pd.read_csv(f"{base_path}.csv", low_memory=False).copy()
+        with open(f"{base_path}.toml", "r") as f:
+            cfg = toml.load(f)
+    except FileNotFoundError as e:
+        print(f"Error loading files for {base_path}: {e}")
+        return None
+    
+    if hasattr(t_sliced, 'flatten'):
+        t_sliced = t_sliced.flatten()
+    
+    vec_channel_name = cfg['daq']['ip_header']
+    emg_channels = cfg['participant']['emg_channels']
+    if 'proc' in cfg and 'units_mepsize' in cfg['proc'] and 'suppress_line_noise' in cfg['proc']:
+        units_mepsize = cfg['proc']['units_mepsize']
+        suppress_line_noise = cfg['proc']['suppress_line_noise']
+    else: # Fallback
+        suppress_line_noise = any(x in str(data_path) for x in ['_ls', '_kalman', '_linesuppressed'])
+        # Extract unit string immediately following 'units_'
+        unit_match = re.search(r'units_([a-zA-Z]+)', str(data_path))
+        units_mepsize = unit_match.group(1) if unit_match else None
+        if units_mepsize:
+            units_mepsize = units_mepsize.replace('u', 'μ')
+
+    # Handle datetime conversion
+    df['datetime'] = pd.to_datetime(df['datetime'], format='mixed')
+    
+    # Find t0_ref (Time 0)
+    mask = df['label'] == 'I0'
+    if mask.any():
+        t0_ref = df.loc[mask, 'datetime'].max()
+    else:
+        t0_ref = df['datetime'].min() # Fallback
+
+    # Calculate relative time in seconds
+    df['t_rel'] = (df['datetime'] - t0_ref).dt.total_seconds()
+    
+    # Ensure df and ep_sub are in sync
+    if len(df) != ep_sub.shape[0]:
+        print(f"Warning: {base_path}\\ndf length ({len(df)}) and ep_sub length ({ep_sub.shape[0]}) mismatch. Trimming.")
+        min_len = min(len(df), ep_sub.shape[0])
+        df = df.iloc[:min_len].copy()
+        ep_sub = ep_sub[:min_len, :, :]
+
+    # Re-order ep_sub to match emg_channels order (A0, A1, ...)
+    try:
+        new_ep_sub = []
+        for i in range(len(emg_channels)):
+            chan_str = f"A{i}"
+            if isinstance(vec_channel_name, (list, np.ndarray)):
+                idx = list(vec_channel_name).index(chan_str)
+            else:
+                idx = list(vec_channel_name).index(chan_str)
+            new_ep_sub.append(ep_sub[:, :, idx])
+        ep_sub = np.stack(new_ep_sub, axis=2)
+    except (ValueError, IndexError) as e:
+        print(f"Error mapping channels in {base_path}: {e}")
+        return None
+
+    return {
+        'df': df,
+        'ep_sub': ep_sub,
+        't_sliced': t_sliced,
+        'emg_channels': emg_channels,
+        'units_mepsize': units_mepsize,
+        'suppress_line_noise': suppress_line_noise,
+        'this_id': df['id'].iloc[0],
+        'this_visit': df['visit'].iloc[0]
+    }
+
+def filter_sn(cfg, overwrite=False, es=''):
+    if cfg['DATA_FOLDER']['scapnerve'] is None:
+        print("SCAP nerve data folder is not configured.")
+        return None, None, None, None
+    s = 'units_uVs_win_15-60_ms_fc0_kalman'
+    d_proc = Path(cfg['DATA_FOLDER']['scapnerve'])
+    p_out = d_proc.parent / 'reproc' / f'filtered{es}.csv'
+    p_par = p_out.with_suffix('.parquet')
+    p_npa = p_out.with_suffix('.npz')
+    p_out.parent.mkdir(exist_ok=True, parents=True)
+
+    if not p_par.exists() or overwrite:
+        all_dfs = []
+        mep_list = []
+
+        for mat_file in d_proc.rglob(f'*{s}*/*.mat'):
+            base_path = str(mat_file.with_suffix(''))
+            data = load_mep_data_sn(base_path)
+            if data:
+                df = data['df']
+                ep_sub = data['ep_sub']
+                
+                mask = (df['type'] == 'immediate') & (df['label'] == 'A0')
+                
+                df = df[mask].copy()
+                if df.empty:
+                    continue
+
+                mep_chunk = ep_sub[mask.values, :, :] # (trials, time, channels)
+                
+                # Adapt columns
+                if 'cxes_pi' in df.columns:
+                    df['SPI_target'] = df['cxes_pi']
+                if 'cx_amplitude' in df.columns:
+                    df['cx_voltage'] = df['cx_amplitude']
+                if 'es_amplitude' in df.columns:
+                    df['sc_current'] = df['es_amplitude']
+                # df['target_muscle'] = 'cAPB'
+
+                all_dfs.append(df)
+                
+                mep_chunk = np.transpose(mep_chunk, (2, 1, 0))
+                mep_list.append(mep_chunk)
+                mep_ch = data['emg_channels'] 
+
+        if len(all_dfs) == 0:
+            print("No valid SCAP nerve data found.")
+            return None, None, None, None
+
+        df = pd.concat(all_dfs, ignore_index=True)
+        mep = np.concatenate(mep_list, axis=2)
+
+        muscle_map = {
+            'cFCR': 'FCR',
+            'cAPB': 'APB',
+            'cFDI': 'FDI',
+        }
+        df.rename(columns=muscle_map, inplace=True)
+        mep_ch = [muscle_map.get(ch, ch) for ch in mep_ch]
+
+        if 'ECR' not in df.columns:
+            df['ECR'] = np.nan
+        if 'ECR' not in mep_ch:
+            mep_ch.append('ECR')
+            nan_slice = np.full((1, mep.shape[1], mep.shape[2]), np.nan)
+            mep = np.concatenate([mep, nan_slice], axis=0)
+
+        df.to_parquet(p_par, engine='pyarrow', index=False)
+        np.savez(p_npa, mep=mep, mep_ch=mep_ch)
+    else:
+        print('Loading pre-processed parquet.')
+        df = pd.read_parquet(p_par, engine='pyarrow')
+        npzfile = np.load(p_npa)
+        mep = npzfile['mep']
+        mep_ch = list(npzfile['mep_ch'])
+
+    # df = df[~((df['cx_voltage'] == 0) | ((df['sc_current'] == 0)))]
+    df = df[df['condition'] == 'cx-es1']
+
+    if 'APB' in df.columns:
+        df['auc_target'] = df['APB']
+    else:
+        df['auc_target'] = np.nan
+    
+    if 'average_count' not in df.columns:
+        df['average_count'] = 1
+    
+    if 'time' not in df.columns and 'datetime' in df.columns:
+        df['time'] = (df['datetime'] - df['datetime'].min()).dt.total_seconds() / 3600
+    if 'participant_condition' not in df.columns:
+        df['participant_condition'] = 'default'
+
+    if cfg['DATA_OPTIONS']['response_transform'] == "log":
+        for ch in list(mep_ch) + ['auc_target']:
+            if ch in df.columns:
+                df.loc[:, ch] = np.log(df.loc[:, ch])
+    elif cfg['DATA_OPTIONS']['response_transform'] == "log10":
+        for ch in list(mep_ch) + ['auc_target']:
+            if ch in df.columns:
+                df.loc[:, ch] = np.log10(df.loc[:, ch])
+    elif cfg['DATA_OPTIONS']['response_transform'] == "log2":
+        for ch in list(mep_ch) + ['auc_target']:
+            if ch in df.columns:
+                df.loc[:, ch] = np.log2(df.loc[:, ch])
+
+    df = df.sort_values(by=['participant', 'datetime'])
+    df.reset_index(drop=True, inplace=True)
+
+    df['participant_index'] = df['participant'].factorize()[0]
+    
+    mapping = bidir_dict()
+    unique_pairs = df.drop_duplicates('participant_index')[['participant_index', 'participant']]
+    mapping.add_mapping('participant', dict(zip(unique_pairs['participant_index'], unique_pairs['participant'])))
+    mapping.add_mapping('alias', dict(zip(unique_pairs['participant_index'], unique_pairs['participant'])))
+    
+    if 'visit' in df.columns:
+        stable_categories = np.sort(df['visit'].unique())
+        df['visit_index'] = pd.Categorical(df['visit'], categories=stable_categories, ordered=True).codes
+        visit_mapping = {i: category for i, category in enumerate(stable_categories)}
+        mapping.add_mapping('visit', visit_mapping)
+    else:
+        df['visit_index'] = 0
+        mapping.add_mapping('visit', {0: '1'})
+
+    if 'run' in df.columns:
+        stable_categories = np.sort(df['run'].unique())
+        df['run_index'] = pd.Categorical(df['run'], categories=stable_categories, ordered=True).codes
+        run_mapping = {i: category for i, category in enumerate(stable_categories)}
+        mapping.add_mapping('run', run_mapping)
+    else:
+        df['run_index'] = 0
+        mapping.add_mapping('run', {0: '1'})
+
+    stable_categories = np.sort(df['participant_condition'].unique())
+    df['condition_index'] = pd.Categorical(df['participant_condition'], categories=stable_categories, ordered=True).codes
+    condition_mapping = {i: category for i, category in enumerate(stable_categories)}
+    mapping.add_mapping('condition', condition_mapping)
+    
+    mapping.add_mapping('muscle', dict(zip(range(len(cfg['DATA_OPTIONS']['response'])), cfg['DATA_OPTIONS']['response'])))
+
+    if 'cxsc_index' not in df.columns:
+        df['cxsc_index'] = 0
+    intensity_mapping = {v: k for k, v in intensity_mapping_inverted(cfg['DATA_OPTIONS']['intensities']).items()}
+    mapping.add_mapping('intensity', intensity_mapping)
+
+    df.to_csv(p_out, index=False)
+
+    return df, mapping, mep, mep_ch
+
 def filter_data(cfg, overwrite=True, es=''):
     if cfg['DATA_OPTIONS']['type'] == 'intraoperative':
         df, mapping, mep, mep_ch = filter_io(cfg, overwrite=overwrite, es=es)
     elif cfg['DATA_OPTIONS']['type'] == 'noninvasive':
         df, mapping, mep, mep_ch = filter_ni(cfg, overwrite=overwrite, es=es)
     elif cfg['DATA_OPTIONS']['type'] == 'scapnerve':
-        # TODO: RESUME HERE
         df, mapping, mep, mep_ch = filter_sn(cfg, overwrite=overwrite, es=es)
     else:
         raise Exception('???')
