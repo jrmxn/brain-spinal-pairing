@@ -1029,7 +1029,6 @@ def filter_sn(cfg, overwrite=False, ie_only=True, es=''):
                 if 'es_amplitude' in df.columns:
                     df['sc_current'] = df['es_amplitude']
                     df['TSCSInt'] = df['es_amplitude']
-                # df['target_muscle'] = 'cAPB'
 
                 all_dfs.append(df)
                 

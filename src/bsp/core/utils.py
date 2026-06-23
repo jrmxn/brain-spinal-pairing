@@ -527,7 +527,8 @@ def plot_data_with_posterior_predictive(cfg, y, x, condition_index, participant_
                                 axis=0).shape[0]
         if total_plots < 1:
             continue
-        fig, axes = plt.subplots(total_plots, num_muscles, figsize=(3.5 * num_muscles * CMTI, 3.5 * total_plots * CMTI), sharex=True,
+        width_multiplier = 2 if cfg['DATA_OPTIONS']['type'].startswith('scapnerve') else 1
+        fig, axes = plt.subplots(total_plots, num_muscles, figsize=(3.5 * width_multiplier * num_muscles * CMTI, 3.5 * total_plots * CMTI), sharex=True,
                                  squeeze=False)
         gg = []
         plot_index = 0
@@ -546,13 +547,16 @@ def plot_data_with_posterior_predictive(cfg, y, x, condition_index, participant_
                         ix_condition = mapping.get_inverse('condition', str_condition)
                         y_local = y[(participant_index == ix_p) & (visit_index == vec_visit_ix[ix_v]) & (
                                     cxsc_index == vec_cxsc_ix[ix_i]), ix_m]
-                        if np.all(np.isnan(y_local)):
-                            ylim_ = np.array([-10, +10]).astype(float)
-                        else:
-                            ylim_ = np.array([np.nanmin(y_local), np.nanmax(y_local)])
 
                         y_new_local = np.array(pred_means_new[ix_condition, ix_p, ix_v, ix_i, :, ix_m])
                         y_new_local_i = np.array(pred_intervals_new[:, ix_condition, ix_p, ix_v, ix_i, :, ix_m])
+                        y_new_local_0 = y_new_local_i[0, ...]
+                        y_new_local_1 = y_new_local_i[1, ...]
+
+                        if len(y_local) == 0:
+                            ylim_ = np.array([np.nanmin(y_new_local_0), np.nanmax(y_new_local_1)]).astype(float)
+                        else:
+                            ylim_ = np.array([np.nanmin([np.nanmin(y_local), np.nanmin(y_new_local_0)]), np.nanmax([np.nanmax(y_local), np.nanmax(y_new_local_1)])])
                         y_new_local_0 = y_new_local_i[0, ...]
                         y_new_local_1 = y_new_local_i[1, ...]
 
@@ -578,6 +582,9 @@ def plot_data_with_posterior_predictive(cfg, y, x, condition_index, participant_
                             ax.set_ylabel(rf'MEP size ($\log_{{{base}}}$)')
                         ax.spines['top'].set_visible(False)
                         ax.spines['right'].set_visible(False)
+                        
+                        if cfg['DATA_OPTIONS']['type'].startswith('scapnerve'):
+                            ax.grid(True, linestyle="--", linewidth=0.5, alpha=0.7)
 
                         p = 0.2
                         if not np.isnan(ylim_).any():

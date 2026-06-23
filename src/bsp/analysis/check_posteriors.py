@@ -126,7 +126,9 @@ def generate_curves(pi, num_cxscs, num_visits, n_plots, num_participants, target
                         case_target = [x for x in np.unique(target_muscle[:, ix_v, ix_p, ix_i]) if x != ""]
                         if len(case_target) == 0:
                             continue
-                        str_target = case_target[0][1:]
+                        str_target = case_target[0]
+                        if str_target.startswith(('c', 'i', 'L', 'R')) and len(str_target) > 1:
+                            str_target = str_target[1:]
                         if muscles == ["auc_target"]:
                             ix_target = 0
                         else:
@@ -157,7 +159,9 @@ def get_target(target_muscle, muscles, ix_v, ix_p, ix_i):
     case_target = [x for x in np.unique(target_muscle[:, ix_v, ix_p, ix_i]) if x != ""]
     if len(case_target) == 0:
         return None, None
-    str_target = case_target[0][1:]
+    str_target = case_target[0]
+    if str_target.startswith(('c', 'i', 'L', 'R')) and len(str_target) > 1:
+        str_target = str_target[1:]
     if muscles == ["auc_target"]:
         ix_target = 0
     else:
@@ -828,7 +832,8 @@ def main(o_model=None, rl_model="", overwrite=False):
     color_pairing = "#2E4053"
     color_threshold = "#3F6072"
 
-    vec_cxsc = [i for i in [mapping.get_inverse("intensity", "supra-sub")]]
+    ix_supra = mapping.get_inverse("intensity", "supra-sub")
+    vec_cxsc = [ix_supra] if ix_supra is not None else [0]
     if cfg["DATA_OPTIONS"]["response_transform"] == "log10":
         base = 10
     elif cfg["DATA_OPTIONS"]["response_transform"] == "log2":
@@ -2321,6 +2326,8 @@ def main(o_model=None, rl_model="", overwrite=False):
             return None
 
         ix_i = mapping.get_inverse('intensity', 'supra-sub')
+        if ix_i is None:
+            ix_i = 0
         ix_v = 0
 
         s = posterior_samples_grouped['s'][:, :, ix_v, :, :, ix_i, :]
@@ -2375,7 +2382,7 @@ def main(o_model=None, rl_model="", overwrite=False):
 
                 # Decide y-limits by data type
                 if ylim is None:
-                    if cfg['DATA_OPTIONS']['type'] == 'intraoperative':
+                    if cfg['DATA_OPTIONS']['type'] in ['intraoperative', 'scapnerve']:
                         if ix_plot < n_c:
                             ylim = [-150, 7000]
                         elif ix_plot < n_c * 2:
@@ -2493,12 +2500,12 @@ def main(o_model=None, rl_model="", overwrite=False):
         Z_squeezed = Z[:, ix_i, ix_v, ...]  # 0 intensity, 0 visit
         Z_squeezed = pctchg(Z_squeezed)
 
-        if cfg['DATA_OPTIONS']['type'] == 'intraoperative':
-            n_r, n_c = 1, 5
+        if cfg['DATA_OPTIONS']['type'] in ['intraoperative', 'scapnerve']:
+            n_r, n_c = 1, n_plots
             ylim = [-150, 1500]
             xlim = [0, 0.015]
         else:
-            n_r, n_c = 1, 6
+            n_r, n_c = 1, n_plots
             ylim = [-25, +45]
             xlim = [0, 0.22]
 
@@ -2541,7 +2548,9 @@ def main(o_model=None, rl_model="", overwrite=False):
                     continue
                 str_p = mapping.get('participant', ix_p)
                 case_target = [x for x in np.unique(target_muscle[:, ix_v, ix_p, ix_i]) if x != '']
-                str_target = case_target[0][1:]
+                str_target = case_target[0]
+                if str_target.startswith(('c', 'i', 'L', 'R')) and len(str_target) > 1:
+                    str_target = str_target[1:]
                 if ('auc_target' == str_muscle):
                     c_ = c
                 elif (str_target == str_muscle):
@@ -3366,7 +3375,8 @@ def main(o_model=None, rl_model="", overwrite=False):
 
         # Loop through each muscle and plot the HDI for all participants and visits sequentially
         mk_i = ['o-', 'o--']
-        vec_cxsc = [i for i in [mapping.get_inverse('intensity', 'supra-sub')]]
+        ix_supra = mapping.get_inverse('intensity', 'supra-sub')
+        vec_cxsc = [ix_supra] if ix_supra is not None else [0]
         for ix_m in range(num_muscles):
             str_muscle = mapping.get('muscle', ix_m)
             ax = axs[ix_m, 0]
@@ -3605,11 +3615,17 @@ def main(o_model=None, rl_model="", overwrite=False):
             pi_candidate_local = np.arange(-15.5, 16.0, 0.1).reshape(-1, 1)
         elif cfg["DATA_OPTIONS"]["type"] == "intraoperative":
             pi_candidate_local = np.arange(-10, 10.2, 0.2).reshape(-1, 1)
+        if cfg["DATA_OPTIONS"]["type"].startswith('scapnerve'):
+            pi_candidate_local = np.arange(-25.5, 26.0, 0.1).reshape(-1, 1)
+        else:
+            pi_candidate_local = np.arange(-15.5, 16.0, 0.1).reshape(-1, 1)
         new_time = np.ones(pi_candidate_local.shape).reshape(-1, 1) * 0.2  # this won't work if run 1 is absent
         average_count = np.ones(new_time.shape) * single_average_count
 
         vec_cxsc = [i for i in [mapping.get_inverse("intensity", "supra-sub"), mapping.get_inverse("intensity", "sub-sub")]
                     if i is not None]
+        if len(vec_cxsc) == 0:
+            vec_cxsc = np.sort(np.unique(cxsc_index))
         for single_cxsc in vec_cxsc:
             pred_means_new, pred_intervals_new = generate_predictions(cfg, pi_candidate_local, new_time, condition_index,
                                                                       participant_index,
@@ -3628,20 +3644,25 @@ def main(o_model=None, rl_model="", overwrite=False):
             new_time = np.linspace(0, 1.2, 50).reshape(-1, 1)
         elif cfg["DATA_OPTIONS"]["type"] == "intraoperative":
             new_time = np.linspace(0, 2.5, 50).reshape(-1, 1)
+        else:
+            new_time = np.linspace(0, 1.2, 50).reshape(-1, 1)
         pi_candidate_local = np.ones(new_time.shape).reshape(-1, 1) * 100  # i.e. when there is no PI
         average_count = np.ones(new_time.shape)
 
         vec_cxsc = np.sort(np.unique(cxsc_index))
         for single_cxsc in vec_cxsc:
+            print(f"Generating predictions for single_cxsc: {single_cxsc}")
             pred_means_new, pred_intervals_new = generate_predictions(cfg, pi_candidate_local, new_time, condition_index,
                                                                       participant_index,
                                                                       visit_index, single_cxsc, data, predictive, rng_key,
                                                                       response_obs, num_samples_pred, average_count)
 
+            print(f"Plotting for single_cxsc: {single_cxsc}")
             plot_data_with_posterior_predictive(cfg, response_obs, time, data["condition_index"], data["participant_index"],
                                                 data["visit_index"], data["cxsc_index"],
                                                 data["run_index"], data['average_count'], single_cxsc, pred_means_new, pred_intervals_new,
                                                 new_time, mapping, "time", d_analysis / "pp_time.svg")
+            print(f"Done plotting for single_cxsc: {single_cxsc}")
 
 
     plot_full_predictions(skip=h_skip_slow_plots())
