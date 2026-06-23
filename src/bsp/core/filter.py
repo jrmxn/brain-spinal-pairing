@@ -981,11 +981,12 @@ def load_mep_data_sn(data_path):
     }
 
 def filter_sn(cfg, overwrite=False, ie_only=True, es=''):
-    if cfg['DATA_FOLDER']['scapnerve'] is None:
+    t_ = cfg['DATA_OPTIONS']['type']
+    if cfg['DATA_FOLDER'][t_] is None:
         print("SCAP nerve data folder is not configured.")
         return None, None, None, None
     s = 'units_uVs_win_15-60_ms_fc0_kalman'
-    d_proc = Path(cfg['DATA_FOLDER']['scapnerve'])
+    d_proc = Path(cfg['DATA_FOLDER'][t_])
     p_out = d_proc.parent / 'reproc' / f'filtered{es}.csv'
     p_par = p_out.with_suffix('.parquet')
     p_npa = p_out.with_suffix('.npz')
@@ -996,6 +997,8 @@ def filter_sn(cfg, overwrite=False, ie_only=True, es=''):
         'cFCR': 'FCR',
         'cAPB': 'APB',
         'cFDI': 'FDI',
+        'cECR': 'ECR',
+        'cBiceps': 'Biceps'
     }
 
     if not p_par.exists() or overwrite:
@@ -1022,8 +1025,10 @@ def filter_sn(cfg, overwrite=False, ie_only=True, es=''):
                     df['SPI_target'] = df['cxes_pi']
                 if 'cx_amplitude' in df.columns:
                     df['cx_voltage'] = df['cx_amplitude']
+                    df['TMSInt'] = df['cx_amplitude']
                 if 'es_amplitude' in df.columns:
                     df['sc_current'] = df['es_amplitude']
+                    df['TSCSInt'] = df['es_amplitude']
                 # df['target_muscle'] = 'cAPB'
 
                 all_dfs.append(df)
@@ -1096,7 +1101,7 @@ def filter_sn(cfg, overwrite=False, ie_only=True, es=''):
 
     condition_map = {
         'cx': 'TMS',
-        'es1': 'TSCS',
+        'es1': 'TSS',
         'cx-es1': 'SCAP',
     }
 
@@ -1151,7 +1156,7 @@ def filter_data(cfg, overwrite=True, es=''):
         df, mapping, mep, mep_ch = filter_io(cfg, overwrite=overwrite, es=es)
     elif cfg['DATA_OPTIONS']['type'] == 'noninvasive':
         df, mapping, mep, mep_ch = filter_ni(cfg, overwrite=overwrite, es=es)
-    elif cfg['DATA_OPTIONS']['type'] == 'scapnerve':
+    elif (cfg['DATA_OPTIONS']['type'] == 'scapnervei') | (cfg['DATA_OPTIONS']['type'] == 'scapnervel'):
         df, mapping, mep, mep_ch = filter_sn(cfg, overwrite=overwrite, es=es)
     else:
         raise Exception('???')

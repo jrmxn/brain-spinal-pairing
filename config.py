@@ -20,7 +20,7 @@ intraoperative_opt = ['global_average',  # adjust_for_spi: None or 'average' or 
                       ]
 
 DATA_OPTIONS = {
-                'type': 'noninvasive',  # 'noninvasive', 'intraoperative', 'scapnerve'
+                'type': 'noninvasive',  # 'noninvasive', 'intraoperative', 'scapnervei', 'scapnervel'
                 'participants': 'all',  # 'all' or ['SCA01', 'SCA02', ...]
                 'visit': 'all', # 'all' for ni or 'mcintosh2024' for intraop
                 'intensities': ['supra-sub', 'sub-sub'],  # 'supra-sub', 'sub-sub', 'supra-zero', 'sub-zero', 'zero-sub',

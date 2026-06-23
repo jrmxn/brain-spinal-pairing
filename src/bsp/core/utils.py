@@ -619,6 +619,7 @@ def plot_data_with_posterior_predictive(cfg, y, x, condition_index, participant_
         op = Path(str(output_file).replace(output_file.stem, output_file.stem + '_' + str_i))
         if output_file is not None:
             fig.savefig(op, bbox_inches='tight')
+            fig.savefig(op.with_suffix('.png'), bbox_inches='tight')
         if show:
             fig.show()
         plt.close(fig)
@@ -677,6 +678,7 @@ def plot_posteriors(cfg, samples, variables, mapping, map_str, output_file, show
 
     if output_file is not None:
         plt.savefig(output_file)
+        plt.savefig(output_file.with_suffix('.svg'))
     if show:
         plt.show()
     plt.close()
