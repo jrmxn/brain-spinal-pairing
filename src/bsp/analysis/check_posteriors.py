@@ -3616,7 +3616,7 @@ def main(o_model=None, rl_model="", overwrite=False):
         elif cfg["DATA_OPTIONS"]["type"] == "intraoperative":
             pi_candidate_local = np.arange(-10, 10.2, 0.2).reshape(-1, 1)
         if cfg["DATA_OPTIONS"]["type"].startswith('scapnerve'):
-            pi_candidate_local = np.arange(-25.5, 26.0, 0.1).reshape(-1, 1)
+            pi_candidate_local = np.arange(-55.5, 56.0, 0.1).reshape(-1, 1)
         else:
             pi_candidate_local = np.arange(-15.5, 16.0, 0.1).reshape(-1, 1)
         new_time = np.ones(pi_candidate_local.shape).reshape(-1, 1) * 0.2  # this won't work if run 1 is absent

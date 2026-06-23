@@ -992,7 +992,6 @@ def filter_sn(cfg, overwrite=False, ie_only=True, es=''):
     p_npa = p_out.with_suffix('.npz')
     p_out.parent.mkdir(exist_ok=True, parents=True)
 
-    star_taget = 'APB'
     muscle_map = {
         'cFCR': 'FCR',
         'cAPB': 'APB',
@@ -1030,11 +1029,29 @@ def filter_sn(cfg, overwrite=False, ie_only=True, es=''):
                     df['sc_current'] = df['es_amplitude']
                     df['TSCSInt'] = df['es_amplitude']
 
+                if 'target_muscle' in df.columns:
+                    tm = df['target_muscle'].iloc[0]
+                    if tm in df.columns:
+                        df['auc_target'] = df[tm]
+                    else:
+                        df['auc_target'] = np.nan
+                    
+                    if tm in data['emg_channels']:
+                        tm_idx = data['emg_channels'].index(tm)
+                        mep_slice = mep_chunk[:, :, tm_idx:tm_idx+1]
+                    else:
+                        mep_slice = np.full((mep_chunk.shape[0], mep_chunk.shape[1], 1), np.nan)
+                else:
+                    df['auc_target'] = np.nan
+                    mep_slice = np.full((mep_chunk.shape[0], mep_chunk.shape[1], 1), np.nan)
+                
+                mep_chunk = np.concatenate([mep_chunk, mep_slice], axis=2)
+                
                 all_dfs.append(df)
                 
                 mep_chunk = np.transpose(mep_chunk, (2, 1, 0))
                 mep_list.append(mep_chunk)
-                mep_ch = data['emg_channels'] 
+                mep_ch = data['emg_channels'] + ['auc_target'] 
 
         if len(all_dfs) == 0:
             print("No valid SCAP nerve data found.")
@@ -1045,17 +1062,6 @@ def filter_sn(cfg, overwrite=False, ie_only=True, es=''):
 
         df.rename(columns=muscle_map, inplace=True)
         mep_ch = [muscle_map.get(ch, ch) for ch in mep_ch]
-
-        if star_taget in df.columns:
-            df['auc_target'] = df[star_taget]
-        else:
-            df['auc_target'] = np.nan
-            df[star_taget] = np.nan
-
-        if 'auc_target' not in mep_ch:
-            mep_slice = mep[[mep_ch_ == star_taget for mep_ch_ in mep_ch], :, :]
-            mep_ch.append('auc_target')
-            mep = np.concatenate([mep, mep_slice], axis=0)
 
         df.to_parquet(p_par, engine='pyarrow', index=False)
         np.savez(p_npa, mep=mep, mep_ch=mep_ch)

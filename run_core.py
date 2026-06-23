@@ -133,7 +133,7 @@ def run_model(f, e, sleep_range=(0, 15), make_plots=False):
     elif ('sni' == e) or ('sni_noexc' == e):
         cfg['DATA_OPTIONS']['type'] = 'scapnervei'
         cfg['DATA_OPTIONS']['es'] = cfg['DATA_OPTIONS']['es']
-        cfg['DATA_OPTIONS']['response'] = ['FCR', 'APB', 'ECR', 'Biceps']
+        cfg['DATA_OPTIONS']['response'] = ['FCR', 'APB']
         cfg['DATA_OPTIONS']['intensities'] = ['sub-at']
         if 'ni_noexc' == e:
             if 'co' in f: return

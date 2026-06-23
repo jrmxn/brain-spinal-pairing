@@ -527,7 +527,7 @@ def plot_data_with_posterior_predictive(cfg, y, x, condition_index, participant_
                                 axis=0).shape[0]
         if total_plots < 1:
             continue
-        width_multiplier = 2 if cfg['DATA_OPTIONS']['type'].startswith('scapnerve') else 1
+        width_multiplier = 4 if cfg['DATA_OPTIONS']['type'].startswith('scapnerve') else 1
         fig, axes = plt.subplots(total_plots, num_muscles, figsize=(3.5 * width_multiplier * num_muscles * CMTI, 3.5 * total_plots * CMTI), sharex=True,
                                  squeeze=False)
         gg = []
