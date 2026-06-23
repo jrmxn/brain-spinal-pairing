@@ -137,6 +137,8 @@ if __name__ == "__main__":
                 + '_'
                 + dfo_reduced['visit_index'].astype(str)
         )
+        if 'participant_filler' not in dfo_reduced.columns:
+            dfo_reduced['participant_filler'] = 'x'
 
         # Clean and preprocess the data
         dfo_reduced[response] = dfo_reduced[response].apply(

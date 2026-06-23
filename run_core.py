@@ -22,9 +22,9 @@ if args.functions_list is None:
 else:
     functions_list = args.functions_list
 
-exp_list_full = ['sn_target', 'sn', 'ni_target', 'ni', 'io_mcintosh2024_cgtarget_anterior', 'io_mcintosh2024_cgtarget', 'io_mcintosh2024_cgtarget_mtarget', 'ni_noexc', 'ni_target_without_b', 'io_mcintosh2024_cgtarget_mtarget_with_b', 'io_mcintosh2024_cgtarget_anterior', 'io_mcintosh2024_cgtarget_mtarget_anterior']  # 'ni_noexc'
+exp_list_full = ['sni_target', 'sni', 'snl_target', 'snl', 'ni_target', 'ni', 'io_mcintosh2024_cgtarget_anterior', 'io_mcintosh2024_cgtarget', 'io_mcintosh2024_cgtarget_mtarget', 'ni_noexc', 'ni_target_without_b', 'io_mcintosh2024_cgtarget_mtarget_with_b', 'io_mcintosh2024_cgtarget_anterior', 'io_mcintosh2024_cgtarget_mtarget_anterior']  # 'ni_noexc'
 if args.exp_list is None:
-    exp_list = ['sn_target']
+    exp_list = ['sni_target', 'sni']
 else:
     exp_list = args.exp_list
 
@@ -111,8 +111,8 @@ def run_model(f, e, sleep_range=(0, 15), make_plots=False):
         cfg['DATA_FOLDER']['intraoperative'] = cfg['DATA_FOLDER']['intraoperative'].with_name('np_anterior_2025-09-09')
         print(f"Changed data folder to\n{cfg['DATA_FOLDER']['intraoperative']}")
 
-    elif ('sn' == e) or ('sn_noexc' == e):
-        cfg['DATA_OPTIONS']['type'] = 'scapnerve'
+    elif ('snl' == e) or ('snl_noexc' == e):
+        cfg['DATA_OPTIONS']['type'] = 'scapnervel'
         cfg['DATA_OPTIONS']['es'] = cfg['DATA_OPTIONS']['es']
         cfg['DATA_OPTIONS']['response'] = ['FCR', 'APB', 'FDI']
         cfg['DATA_OPTIONS']['intensities'] = ['sub-at']
@@ -121,8 +121,27 @@ def run_model(f, e, sleep_range=(0, 15), make_plots=False):
             cfg['NI_EXCLUDE'] = []
             cfg['DATA_OPTIONS']['es'] = cfg['DATA_OPTIONS']['es'] + 'noexc_'
 
-    elif ('sn_target' == e) or ('sn_target_without_b' == e):
-        cfg['DATA_OPTIONS']['type'] = 'scapnerve'
+    elif ('snl_target' == e) or ('snl_target_without_b' == e):
+        cfg['DATA_OPTIONS']['type'] = 'scapnervel'
+        cfg['DATA_OPTIONS']['es'] = cfg['DATA_OPTIONS']['es']
+        cfg['DATA_OPTIONS']['response'] = ['auc_target']
+        cfg['DATA_OPTIONS']['intensities'] = ['sub-at']
+        if 'ni_target_without_b' == e:
+            cfg['MODEL_OPTIONS']['use_b'] = False
+            cfg['DATA_OPTIONS']['es'] = cfg['DATA_OPTIONS']['es'] + 'withoutb_'
+
+    elif ('sni' == e) or ('sni_noexc' == e):
+        cfg['DATA_OPTIONS']['type'] = 'scapnervei'
+        cfg['DATA_OPTIONS']['es'] = cfg['DATA_OPTIONS']['es']
+        cfg['DATA_OPTIONS']['response'] = ['FCR', 'APB', 'ECR', 'Biceps']
+        cfg['DATA_OPTIONS']['intensities'] = ['sub-at']
+        if 'ni_noexc' == e:
+            if 'co' in f: return
+            cfg['NI_EXCLUDE'] = []
+            cfg['DATA_OPTIONS']['es'] = cfg['DATA_OPTIONS']['es'] + 'noexc_'
+
+    elif ('sni_target' == e) or ('sni_target_without_b' == e):
+        cfg['DATA_OPTIONS']['type'] = 'scapnervei'
         cfg['DATA_OPTIONS']['es'] = cfg['DATA_OPTIONS']['es']
         cfg['DATA_OPTIONS']['response'] = ['auc_target']
         cfg['DATA_OPTIONS']['intensities'] = ['sub-at']
