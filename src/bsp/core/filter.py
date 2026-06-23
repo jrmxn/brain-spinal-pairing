@@ -1072,9 +1072,12 @@ def filter_sn(cfg, overwrite=False, ie_only=True, es=''):
         mep = npzfile['mep']
         mep_ch = list(npzfile['mep_ch'])
 
-    # df = df[~((df['cx_voltage'] == 0) | ((df['sc_current'] == 0)))]
+    df.loc[df['condition'] == 'es1', 'SPI_target'] = np.nan
+    df.loc[df['condition'] == 'cx', 'SPI_target'] = np.nan
+
     if ie_only:
-        case_ie = df['condition'] == 'cx-es1'
+        # NB!!!! I am keeping es1 since it acts as baseline!!!
+        case_ie = (df['condition'] == 'cx-es1') | (df['condition'] == 'es1')
         df = df[case_ie]
         mep = mep[:, :, case_ie]
     

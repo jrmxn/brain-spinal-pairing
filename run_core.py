@@ -139,6 +139,10 @@ def run_model(f, e, sleep_range=(0, 15), make_plots=False):
             if 'co' in f: return
             cfg['NI_EXCLUDE'] = []
             cfg['DATA_OPTIONS']['es'] = cfg['DATA_OPTIONS']['es'] + 'noexc_'
+        cfg['MCMC_OPTIONS']['num_warmup'] = 1000  # REMOVE WHEN DONE
+        cfg['MCMC_OPTIONS']['num_samples'] = 1000  # REMOVE WHEN DONE
+        cfg['MODEL_OPTIONS']['scale_c_prior'] = 2.5  # TWEAK
+        cfg['MODEL_OPTIONS']['c_limits'] = 10.0  # TWEAK
 
     elif ('sni_target' == e) or ('sni_target_without_b' == e):
         cfg['DATA_OPTIONS']['type'] = 'scapnervei'
@@ -148,6 +152,10 @@ def run_model(f, e, sleep_range=(0, 15), make_plots=False):
         if 'ni_target_without_b' == e:
             cfg['MODEL_OPTIONS']['use_b'] = False
             cfg['DATA_OPTIONS']['es'] = cfg['DATA_OPTIONS']['es'] + 'withoutb_'
+        cfg['MCMC_OPTIONS']['num_warmup'] = 1000  # REMOVE WHEN DONE
+        cfg['MCMC_OPTIONS']['num_samples'] = 1000  # REMOVE WHEN DONE
+        cfg['MODEL_OPTIONS']['scale_c_prior'] = 2.5  # TWEAK
+        cfg['MODEL_OPTIONS']['c_limits'] = 10.0  # TWEAK
 
     if (cfg['DATA_OPTIONS']['type'] == 'intraoperative') and ('co' in f):
         print('SKIPPING condition model, for intraoperative data!')
