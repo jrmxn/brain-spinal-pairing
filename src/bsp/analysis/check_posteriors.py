@@ -2500,12 +2500,14 @@ def main(o_model=None, rl_model="", overwrite=False):
         Z_squeezed = Z[:, ix_i, ix_v, ...]  # 0 intensity, 0 visit
         Z_squeezed = pctchg(Z_squeezed)
 
-        if cfg['DATA_OPTIONS']['type'] in ['intraoperative', 'scapnerve']:
-            n_r, n_c = 1, n_plots
+        n_r, n_c = 1, n_plots
+        if cfg['DATA_OPTIONS']['type'] in ['intraoperative']:
             ylim = [-150, 1500]
             xlim = [0, 0.015]
+        elif cfg['DATA_OPTIONS']['type'] in ['scapnervei', 'scapnervel']:
+            ylim = [-50, +355]
+            xlim = [0, 0.22]
         else:
-            n_r, n_c = 1, n_plots
             ylim = [-25, +45]
             xlim = [0, 0.22]
 
@@ -3021,6 +3023,9 @@ def main(o_model=None, rl_model="", overwrite=False):
         ix_i = mapping.get_inverse('intensity', 'supra-sub')
         ix_v = 0
         s = posterior_samples_grouped['s'][:, :, ix_v, :, :, ix_i, :]
+        num_columns = s.shape[-1]
+        if num_columns <= 1:
+            return None
         mask_local = np.any(mask_muscle[:, ix_v, :, :, ix_i, :], axis=0)
         s = np.where(mask_local[None, None, :, :, :], s, np.nan)
         s_mea = np.mean(s, axis=(0, 1))
@@ -3032,7 +3037,7 @@ def main(o_model=None, rl_model="", overwrite=False):
         ]
         s_mea_reduced = s_mea[np.arange(s_mea.shape[0]), vec_ix_c, :]
 
-        num_columns = s_mea.shape[2]
+        num_columns = s_mea.shape[-1]
         fig_width = 8.0 * CMTI
         fig_height = 8.0 * CMTI
         n_panels = num_columns - 1
@@ -3049,9 +3054,8 @@ def main(o_model=None, rl_model="", overwrite=False):
         for i in range(1, num_columns):
             for j in range(0, i):
                 ax = axs[i - 1, j]
-
-                s_mea_1 = s_mea_reduced[:, i]
-                s_mea_2 = s_mea_reduced[:, j]
+                s_mea_1 = s_mea_reduced[..., i].squeeze()
+                s_mea_2 = s_mea_reduced[..., j].squeeze()
 
                 for ix_p in range(num_participants):
                     c = color_pairing
@@ -3087,8 +3091,8 @@ def main(o_model=None, rl_model="", overwrite=False):
         for i in range(1, num_columns):
             for j in range(0, i):
                 ax = axs[i - 1, j]
-                s_mea_1 = s_mea_reduced[:, i]
-                s_mea_2 = s_mea_reduced[:, j]
+                s_mea_1 = s_mea_reduced[..., i].squeeze()
+                s_mea_2 = s_mea_reduced[..., j].squeeze()
                 valid_mask = ~np.isnan(s_mea_1) & ~np.isnan(s_mea_2)
 
                 y_clean = s_mea_1[valid_mask]
