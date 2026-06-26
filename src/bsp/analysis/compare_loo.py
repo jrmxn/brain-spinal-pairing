@@ -6,7 +6,6 @@ from numpyro.infer import log_likelihood
 import toml
 import re
 
-# To allow importing from project root when running directly
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.parent))
 
 from config import BASE_DIR, DATA_FOLDER
@@ -89,7 +88,6 @@ def main():
         posterior_samples = mcmc.get_samples(group_by_chain=False)
 
         print("Computing log_likelihood...")
-        # Note: the arguments to model are: cpi, time, response_obs, run_index, visit_index, participant_index, descriptor_index, intensity_index, average_count, model_options
         log_lik = log_likelihood(
             model, posterior_samples, pi, time, response_obs, run_index, visit_index, 
             participant_index, condition_index, cxsc_index, average_count, cfg["MODEL_OPTIONS"]
@@ -104,8 +102,6 @@ def main():
         print(az.loo(idata))
 
     if len(idatas) > 0:
-        # Group idatas by the shape/size of their log likelihood data
-        # because az.compare requires the number of observations to be identical.
         from collections import defaultdict
         groups = defaultdict(dict)
         for name, idata in idatas.items():

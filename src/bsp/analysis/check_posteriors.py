@@ -2414,7 +2414,7 @@ def main(o_model=None, rl_model="", overwrite=False):
             write_figure(fig, d_analysis, show)
 
 
-    def plot_specific_participant_facilitation(pi_candidate, str_participant, str_muscle, ix_v, ix_i, figsize=None, c=None, show_ci=True, xlim=None, ylim=None, skip=False):
+    def plot_specific_participant_facilitation(pi_candidate, str_participant, str_muscle, ix_v, ix_i, figsize=None, c=None, show_ci=True, xlim=None, ylim=None, skip=False, zero_m=True):
         """
         Wrapper that sets up the figure(s), loops over participants/muscles/visits,
         and calls `plot_facilitation_single` for each subplot.
@@ -2456,7 +2456,7 @@ def main(o_model=None, rl_model="", overwrite=False):
         plot_facilitation_single(
             ax=ax, ix_p=ix_p, ix_c=ix_c, ix_m=ix_m, ix_v=ix_v, str_muscle=str_muscle,
             m=m, w=w, s=s, pi_candidate=pi_candidate,
-            zero_m=True,
+            zero_m=zero_m,
             ylabel=None, xlim=xlim, ylim=ylim, c=c, show_data=False, show_ci=show_ci)
 
         for spine in ['top', 'right']:
@@ -2477,7 +2477,13 @@ def main(o_model=None, rl_model="", overwrite=False):
                                               str_muscle='APB', ix_v=0, ix_i=mapping.get_inverse('intensity', 'supra-sub'),
                                               figsize=(4.0*CMTI, 4.7*CMTI), show_ci=False, xlim=[-15, 15], ylim=[-5, 25],
                                               skip=skip)
-
+    if (cfg['DATA_OPTIONS']['type'] == 'scapnervei') and (num_muscles > 1):
+        plot_specific_participant_facilitation(pi_candidate=np.linspace(-15, 15, 301),
+                                              str_participant='S00P08',
+                                              str_muscle='FCR', ix_v=0, ix_i=0,
+                                              figsize=(4.0*CMTI, 4.7*CMTI), show_ci=False, xlim=[-15, 15], ylim=[-5, 200],
+                                              zero_m=False,
+                                              skip=skip)
 
     # %%
     if mapping.get('muscle', 0) == 'auc_target':
@@ -3406,7 +3412,9 @@ def main(o_model=None, rl_model="", overwrite=False):
 
 
             # %%
-    variables_to_plot = ['scale_w', 'scale_s', 'scale_loc_s']  # pop_bell1_mean
+    variables_to_plot = ['scale_w', 'scale_s', 'scale_loc_s', 'scale_c', 'scale_scale', 'scale_a_run', 'scale_b_run']  # pop_bell1_mean
+    # Filter variables to plot based on what's actually present in the samples
+    variables_to_plot = [v for v in variables_to_plot if v in posterior_samples]
     plot_posteriors(cfg, posterior_samples, variables_to_plot, mapping, None, d_analysis / 'dist_pop.png', show=show, skip=skip)
 
 
