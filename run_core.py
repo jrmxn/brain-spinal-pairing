@@ -24,7 +24,7 @@ else:
 
 exp_list_full = ['sni_target', 'sni', 'snl_target', 'snl', 'ni_target', 'ni', 'io_mcintosh2024_cgtarget_anterior', 'io_mcintosh2024_cgtarget', 'io_mcintosh2024_cgtarget_mtarget', 'ni_noexc', 'ni_target_without_b', 'io_mcintosh2024_cgtarget_mtarget_with_b', 'io_mcintosh2024_cgtarget_anterior', 'io_mcintosh2024_cgtarget_mtarget_anterior']  # 'ni_noexc'
 if args.exp_list is None:
-    exp_list = ['sni_target', 'sni']
+    exp_list = ['sni_target', 'io_mcintosh2024_cgtarget_mtarget', 'ni_target']  # ,
 else:
     exp_list = args.exp_list
 
@@ -139,10 +139,8 @@ def run_model(f, e, sleep_range=(0, 15), make_plots=False):
             if 'co' in f: return
             cfg['NI_EXCLUDE'] = []
             cfg['DATA_OPTIONS']['es'] = cfg['DATA_OPTIONS']['es'] + 'noexc_'
-        # cfg['MCMC_OPTIONS']['num_warmup'] = 1000  # REMOVE WHEN DONE
-        # cfg['MCMC_OPTIONS']['num_samples'] = 1000  # REMOVE WHEN DONE
-        cfg['MODEL_OPTIONS']['scale_c_prior'] = 5.0  # TWEAK
-        cfg['MODEL_OPTIONS']['c_limits'] = 10.0  # TWEAK
+        cfg['MODEL_OPTIONS']['scale_c_prior'] = 5.0
+        cfg['MODEL_OPTIONS']['c_limits'] = 10.0
 
     elif ('sni_target' == e) or ('sni_target_without_b' == e):
         cfg['DATA_OPTIONS']['type'] = 'scapnervei'
@@ -152,10 +150,8 @@ def run_model(f, e, sleep_range=(0, 15), make_plots=False):
         if 'ni_target_without_b' == e:
             cfg['MODEL_OPTIONS']['use_b'] = False
             cfg['DATA_OPTIONS']['es'] = cfg['DATA_OPTIONS']['es'] + 'withoutb_'
-        # cfg['MCMC_OPTIONS']['num_warmup'] = 1000  # REMOVE WHEN DONE
-        # cfg['MCMC_OPTIONS']['num_samples'] = 1000  # REMOVE WHEN DONE
-        cfg['MODEL_OPTIONS']['scale_c_prior'] = 5.0  # TWEAK
-        cfg['MODEL_OPTIONS']['c_limits'] = 10.0  # TWEAK
+        cfg['MODEL_OPTIONS']['scale_c_prior'] = 5.0
+        cfg['MODEL_OPTIONS']['c_limits'] = 10.0
 
     if (cfg['DATA_OPTIONS']['type'] == 'intraoperative') and ('co' in f):
         print('SKIPPING condition model, for intraoperative data!')

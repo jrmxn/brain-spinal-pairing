@@ -14,13 +14,13 @@ def custom_sort_key(model_name):
     """
     """
     version_priority = v in model_name
-    noninvasive_priority = (v + '_' + 'noninvasive' in model_name) or ('intraoperative' in model_name)
+    type_priority = ('scapnerve' in model_name)  # or ('intraoperative' in model_name)
     auc_target_priority = 'auc_target' in model_name
     model00_priority = 'model00_' in model_name
 
 
     # Sorting logic: Higher priority should come first, so we use negative values to sort descending
-    return (-version_priority, -auc_target_priority, -model00_priority)
+    return (-type_priority, -auc_target_priority, -model00_priority)
 
 if v == "":
     v = DATA_OPTIONS['es'].split('_')[0]

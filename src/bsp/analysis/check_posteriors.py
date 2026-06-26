@@ -269,10 +269,10 @@ def load_and_process_hbmep(str_intensity, model_name, feature1, mapping, cfg, vi
     vs = cfg["DATA_OPTIONS"]["es"]
     vs = vs.split("_")[0] + "_"
     f_hbmep = lambda x: f"hbmep_{vs}{model_name}_{'_'.join(muscles)}_participant_visit_{feature1}_{str_intensity}_mixT_{visit}{str_smooth}{str_mepsizetype}{str_s50}{x}"
-    source_path = Path(BASE_DIR) / "hbmep" / f_hbmep(str_short) / "inference.pkl"
+    source_path = Path(BASE_DIR).parent / "hbmep" / f_hbmep(str_short) / "inference.pkl"
     if not source_path.exists():
         warnings.warn(f"hbmep file does not exist:\n{source_path}\n Trying to fall back on short version.")
-        source_path = Path(BASE_DIR) / "hbmep" / f_hbmep("_s") / "inference.pkl"
+        source_path = Path(BASE_DIR).parent / "hbmep" / f_hbmep("_s") / "inference.pkl"
     if not source_path.exists():
         raise Exception("hbmep file does not exist.")
     with open(source_path, "rb") as f:
@@ -2511,14 +2511,14 @@ def main(o_model=None, rl_model="", overwrite=False):
             ylim = [-150, 1500]
             xlim = [0, 0.015]
         elif cfg['DATA_OPTIONS']['type'] in ['scapnervei', 'scapnervel']:
-            ylim = [-50, +355]
+            ylim = [-50, +205]
             xlim = [0, 0.22]
         else:
             ylim = [-25, +45]
             xlim = [0, 0.22]
 
-        fig_width = 19 * CMTI
-        fig_height = 8 * n_r * CMTI
+        fig_width = 11 * CMTI
+        fig_height = 5 * n_r * CMTI
 
         fig = plt.figure(figsize=(fig_width, fig_height))
         fig.figure_name = f'fac_averaged_{intensity_condition}{es}'
