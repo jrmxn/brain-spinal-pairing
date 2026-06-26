@@ -271,6 +271,11 @@ def load_and_process_hbmep(str_intensity, model_name, feature1, mapping, cfg, vi
     f_hbmep = lambda x: f"hbmep_{vs}{model_name}_{'_'.join(muscles)}_participant_visit_{feature1}_{str_intensity}_mixT_{visit}{str_smooth}{str_mepsizetype}{str_s50}{x}"
     source_path = Path(BASE_DIR).parent / "hbmep" / f_hbmep(str_short) / "inference.pkl"
     if not source_path.exists():
+        # try previous version afor now as a fallback
+        vs_prev = 'v0p1p0_'
+        warnings.warn(f"hbmep file does not exist:\n{source_path}\n Trying to fall back to {vs_prev}.")
+        source_path = Path(str(source_path).replace(vs, vs_prev))
+    if not source_path.exists():
         warnings.warn(f"hbmep file does not exist:\n{source_path}\n Trying to fall back on short version.")
         source_path = Path(BASE_DIR).parent / "hbmep" / f_hbmep("_s") / "inference.pkl"
     if not source_path.exists():
@@ -2512,7 +2517,7 @@ def main(o_model=None, rl_model="", overwrite=False):
             xlim = [0, 0.015]
         elif cfg['DATA_OPTIONS']['type'] in ['scapnervei', 'scapnervel']:
             ylim = [-50, +205]
-            xlim = [0, 0.22]
+            xlim = [0, 0.022]
         else:
             ylim = [-25, +45]
             xlim = [0, 0.22]
