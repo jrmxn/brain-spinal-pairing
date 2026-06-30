@@ -2501,7 +2501,7 @@ def main(o_model=None, rl_model="", overwrite=False):
                         mask_visit, posterior_samples_grouped, mapping, mask_muscle, zero_pi=False)
 
 
-    def plot_fac_averaged(Z, pi_candidate, intensity_condition, es='', skip=False):
+    def plot_fac_averaged(Z, pi_candidate, intensity_condition, ytype='linear', es='', skip=False):
         """
         """
         if skip:
@@ -2511,8 +2511,20 @@ def main(o_model=None, rl_model="", overwrite=False):
         Z_squeezed = Z[:, ix_i, ix_v, ...]  # 0 intensity, 0 visit
         Z_squeezed = pctchg(Z_squeezed)
 
+        if ytype == 'log2':
+            # Convert percent change back to fold-change (ratio)
+            Z_squeezed = Z_squeezed / 100 + 1
+
         n_r, n_c = 1, n_plots
-        if cfg['DATA_OPTIONS']['type'] in ['intraoperative']:
+        if ytype == 'log2':
+            ylim = [0.5, 16]
+            if cfg['DATA_OPTIONS']['type'] in ['intraoperative']:
+                xlim = [0, 1.01]
+            elif cfg['DATA_OPTIONS']['type'] in ['scapnervei', 'scapnervel']:
+                xlim = [0, 2.01]
+            else:
+                xlim = [0, 9.01]
+        elif cfg['DATA_OPTIONS']['type'] in ['intraoperative']:
             ylim = [-150, 1500]
             xlim = [0, 0.015]
         elif cfg['DATA_OPTIONS']['type'] in ['scapnervei', 'scapnervel']:
@@ -2523,7 +2535,7 @@ def main(o_model=None, rl_model="", overwrite=False):
             xlim = [0, 0.22]
 
         fig_width = 11 * CMTI
-        fig_height = 5 * n_r * CMTI
+        fig_height = 6 * n_r * CMTI
 
         fig = plt.figure(figsize=(fig_width, fig_height))
         fig.figure_name = f'fac_averaged_{intensity_condition}{es}'
@@ -2556,6 +2568,7 @@ def main(o_model=None, rl_model="", overwrite=False):
             sem = std / np.sqrt(n_valid)
 
             above_bounds = dict()
+            below_bounds = dict()
             for ix_p in range(num_participants):
                 if np.all(np.isnan(Z_squeezed[:, ix_m, ix_p])):
                     continue
@@ -2574,8 +2587,11 @@ def main(o_model=None, rl_model="", overwrite=False):
 
                 ax1.plot(pi_candidate, Z_squeezed[:, ix_m, ix_p].squeeze(), color=c_, alpha=0.05)
                 pk_max = Z_squeezed[:, ix_m, ix_p].max()
+                pk_min = Z_squeezed[:, ix_m, ix_p].min()
                 if pk_max > ylim[1]:
                     above_bounds[str_p] = float(pk_max)
+                if pk_min < ylim[0]:
+                    below_bounds[str_p] = float(pk_min)
 
             ax1.plot(pi_candidate, z, color=c, label=f'Mean')
 
@@ -2587,13 +2603,15 @@ def main(o_model=None, rl_model="", overwrite=False):
             ax1.set_xticklabels(xticks_labels)
 
             if ix_m == 0:
-                ax1.set_ylabel('% Facilitation')
+                ax1.set_ylabel('Facilitation (log2 fold change)' if ytype == 'log2' else '% Facilitation')
             else:
                 ax1.set_yticklabels([])
                 ax2.set_yticklabels([])
 
             ax1.set_ylim(ylim)
             ax1.set_xlim([pi_candidate[0], pi_candidate[-1]])
+            if ytype == 'log2':
+                ax1.set_yscale('log', base=2)
             for spine in ['top', 'right']:
                 ax1.spines[spine].set_visible(False)
                 # ax1.spines[spine].set_color('none')  # Alternatively use rgba(0, 0, 0, 0)
@@ -2607,6 +2625,8 @@ def main(o_model=None, rl_model="", overwrite=False):
                     ps_ = np.array(posterior_samples_grouped['loc_s'])[:, :, ix_c, ix_i, ix_m]
                     ps = pctchg(ps_)
                     ps = ps.flatten()
+                    if ytype == 'log2':
+                        ps = ps / 100 + 1
                     ax2.set_yticks([])
                     ax2.set_xticks([0, xlim[-1]])
                     xtickl = [f'{a:0.2f}' for a in ax2.get_xticks()]
@@ -2614,12 +2634,13 @@ def main(o_model=None, rl_model="", overwrite=False):
                     ax2.set_xticklabels(xtickl)
                     ax2.set_yticklabels([])
                     ax2.tick_params(left=False)  # Alternative way to remove ticks
-                    ax2.axhline(0, color='k', linestyle='--', linewidth=0.5)
+                    baseline = 1 if ytype == 'log2' else 0
+                    ax2.axhline(baseline, color='k', linestyle='--', linewidth=0.5)
 
                     sns.kdeplot(y=ps, color=c, linestyle=ls, ax=ax2, fill=False)
-                    sns.kdeplot(y=ps, color=c, linestyle=ls, ax=ax2, fill=True, clip=(0, np.max(ps)), linewidth=0)
+                    sns.kdeplot(y=ps, color=c, linestyle=ls, ax=ax2, fill=True, clip=(baseline, np.max(ps)), linewidth=0)
 
-                    p = np.mean(ps > 0, axis=0)
+                    p = np.mean(ps > baseline, axis=0)
                     p_str = f"Probability = {p:0.2f} "
                     y_text = np.percentile(ps, 98)
                     if y_text > np.mean(ylim):
@@ -2630,6 +2651,8 @@ def main(o_model=None, rl_model="", overwrite=False):
 
             ax2.set_ylim(ylim)
             ax2.set_xlim(xlim)
+            if ytype == 'log2':
+                ax2.set_yscale('log', base=2)
             for spine in ['top', 'right']:
                 ax2.spines[spine].set_visible(False)
                 ax2.spines[spine].set_color('none')  # Alternatively use rgba(0, 0, 0, 0)
@@ -2641,12 +2664,23 @@ def main(o_model=None, rl_model="", overwrite=False):
                 for ix, key in enumerate(above_bounds.keys()):
                     ax1.text(
                         1.00, 0.99-0.03*ix,
-                        f'{above_bounds[key]:0.0f}%',
+                        f'{above_bounds[key]:0.1f}x' if ytype == 'log2' else f'{above_bounds[key]:0.0f}%',
                         transform=ax1.transAxes, ha='right', va='top', fontsize=4,
                         bbox=dict(facecolor='white', alpha=0.0, edgecolor='none')
                     )
 
-            str_max = f'Max of avg.: {np.max(z):0.1f}%'
+            if len(below_bounds) > 0:
+                print(f'Below bounds participants (% fac.) for {str_muscle}:')
+                print(below_bounds)
+                for ix, key in enumerate(below_bounds.keys()):
+                    ax1.text(
+                        1.00, 0.01+0.03*ix,
+                        f'{below_bounds[key]:0.1f}x' if ytype == 'log2' else f'{below_bounds[key]:0.0f}%',
+                        transform=ax1.transAxes, ha='right', va='bottom', fontsize=4,
+                        bbox=dict(facecolor='white', alpha=0.0, edgecolor='none')
+                    )
+
+            str_max = f'Max of avg.: {np.max(z):0.1f}x' if ytype == 'log2' else f'Max of avg.: {np.max(z):0.1f}%'
             ax1.text(
                 0.5, 0.9,
                 str_max,
@@ -2663,6 +2697,7 @@ def main(o_model=None, rl_model="", overwrite=False):
         str_intensity = mapping.get('intensity', ix_intensity)
         ylim_ = plot_fac_averaged(Z,pi_candidate, str_intensity, skip=skip)
         plot_fac_averaged(Z_non_zero_pi, pi_candidate, str_intensity, es='_non-zero-pi', skip=skip)
+        plot_fac_averaged(Z, pi_candidate, str_intensity, ytype='log2', es='_log2', skip=skip)
 
         if mapping.get('intensity', ix_intensity) == 'supra-sub':
             ylim = ylim_
